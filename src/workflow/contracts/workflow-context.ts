@@ -1,0 +1,13 @@
+import { WorkflowSignal } from './workflow-signal';
+
+export interface WorkflowContext<
+  TState extends Record<string, unknown> = Record<string, unknown>,
+> {
+  readonly workflowId: string;
+  readonly stepExecutionKey: string;
+  readonly executionId: string;
+  readonly workflowName: string;
+  readonly currentStep?: string;
+  readonly data: Readonly<TState>;
+  readonly signal?: WorkflowSignal;
+}

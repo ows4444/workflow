@@ -1,0 +1,1 @@
+export const WORKFLOW_STATE_STORE = Symbol('WORKFLOW_STATE_STORE');
