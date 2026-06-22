@@ -18,9 +18,58 @@ export class WorkflowStateTransitions {
     const now = this.now();
 
     return this.next(state, {
+      iteration: state.iteration + 1,
       executingStep: step,
       stepStartedAt: now,
       updatedAt: now,
+    });
+  }
+
+  resume(state: WorkflowExecutionState): WorkflowExecutionState {
+    const now = this.now();
+
+    return this.next(state, {
+      status: 'running',
+      waitingForSignal: undefined,
+      updatedAt: now,
+    });
+  }
+
+  completeWorkflow(state: WorkflowExecutionState): WorkflowExecutionState {
+    const now = this.now();
+
+    return this.next(state, {
+      status: 'completed',
+      waitingForSignal: undefined,
+      executingStep: undefined,
+      stepStartedAt: undefined,
+      completedAt: now,
+      updatedAt: now,
+      failedAt: undefined,
+      failedStep: undefined,
+      lastError: undefined,
+    });
+  }
+
+  failStep(
+    state: WorkflowExecutionState,
+    execution: WorkflowStepExecution,
+    error: string,
+  ): WorkflowExecutionState {
+    const now = this.now();
+
+    return this.next(state, {
+      history: state.executingStep
+        ? [...state.history, execution]
+        : state.history,
+      status: 'failed',
+      executingStep: undefined,
+      stepStartedAt: undefined,
+      failedAt: now,
+      updatedAt: now,
+      failedStep: execution.step,
+      lastError: error,
+      failureCount: (state.failureCount ?? 0) + 1,
     });
   }
 
@@ -56,63 +105,5 @@ export class WorkflowStateTransitions {
       ...changes,
       stateVersion: state.stateVersion + 1,
     };
-  }
-
-  markRunning(state: WorkflowExecutionState): WorkflowExecutionState {
-    const now = this.now();
-    return this.next(state, {
-      status: 'running',
-      waitingForSignal: undefined,
-      updatedAt: now,
-    });
-  }
-
-  markWaiting(
-    state: WorkflowExecutionState,
-    signal: WorkflowSignal,
-  ): WorkflowExecutionState {
-    const now = this.now();
-    return this.next(state, {
-      status: 'waiting',
-      waitingForSignal: signal,
-      executingStep: undefined,
-      stepStartedAt: undefined,
-      updatedAt: now,
-    });
-  }
-
-  markCompleted(state: WorkflowExecutionState): WorkflowExecutionState {
-    const now = this.now();
-
-    return this.next(state, {
-      status: 'completed',
-      waitingForSignal: undefined,
-      executingStep: undefined,
-      stepStartedAt: undefined,
-      failedStep: undefined,
-      lastError: undefined,
-      completedAt: now,
-      updatedAt: now,
-    });
-  }
-
-  markFailed(
-    state: WorkflowExecutionState,
-    step: string,
-    error: string,
-  ): WorkflowExecutionState {
-    const now = this.now();
-
-    return this.next(state, {
-      status: 'failed',
-      waitingForSignal: undefined,
-      executingStep: undefined,
-      stepStartedAt: undefined,
-      failedAt: now,
-      updatedAt: now,
-      failedStep: step,
-      lastError: error,
-      failureCount: (state.failureCount ?? 0) + 1,
-    });
   }
 }

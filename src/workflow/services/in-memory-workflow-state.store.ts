@@ -8,6 +8,10 @@ import { WorkflowConcurrencyError } from '../errors/workflow.errors';
 export class InMemoryWorkflowStateStore implements WorkflowStateStore {
   private readonly states = new Map<string, WorkflowExecutionState>();
 
+  async insert(state: WorkflowExecutionState): Promise<void> {
+    this.states.set(state.workflowId, state);
+  }
+
   async findRunning() {
     return this.values().filter((x) => x.status === 'running');
   }
@@ -32,20 +36,24 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
   }
 
   async save(
-    state: WorkflowExecutionState,
-    expectedVersion?: number,
+    previousState: WorkflowExecutionState,
+    nextState: WorkflowExecutionState,
   ): Promise<void> {
-    if (expectedVersion !== undefined) {
-      const existing = this.states.get(state.workflowId);
+    const existing = this.states.get(nextState.workflowId);
 
-      if (existing && existing.stateVersion !== expectedVersion) {
-        throw new WorkflowConcurrencyError(
-          `Workflow '${state.workflowId}' version mismatch`,
-        );
-      }
+    if (!existing) {
+      throw new WorkflowConcurrencyError(
+        `Workflow '${nextState.workflowId}' not found`,
+      );
     }
 
-    this.states.set(state.workflowId, state);
+    if (existing.stateVersion !== previousState.stateVersion) {
+      throw new WorkflowConcurrencyError(
+        `Workflow '${nextState.workflowId}' version mismatch`,
+      );
+    }
+
+    this.states.set(nextState.workflowId, nextState);
   }
 
   async load(workflowId: string): Promise<WorkflowExecutionState | null> {

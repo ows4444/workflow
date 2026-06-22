@@ -8,6 +8,4 @@ export interface WorkflowDefinitionMetadata {
   >;
 
   readonly allowCycles?: boolean;
-
-  readonly allowParallelExecution?: boolean;
 }

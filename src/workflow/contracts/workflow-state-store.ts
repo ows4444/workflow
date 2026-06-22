@@ -1,9 +1,16 @@
 import { WorkflowExecutionState } from './workflow-execution-state';
 
 export interface WorkflowStateStore {
-  save(state: WorkflowExecutionState, expectedVersion?: number): Promise<void>;
+  insert(state: WorkflowExecutionState): Promise<void>;
+
+  save(
+    previousState: WorkflowExecutionState,
+    nextState: WorkflowExecutionState,
+  ): Promise<void>;
 
   load(workflowId: string): Promise<WorkflowExecutionState | null>;
+
+  delete(workflowId: string): Promise<void>;
 
   findRunning?(): Promise<WorkflowExecutionState[]>;
 
@@ -12,8 +19,6 @@ export interface WorkflowStateStore {
   findFailed?(): Promise<WorkflowExecutionState[]>;
 
   findStuck?(olderThanMs: number): Promise<WorkflowExecutionState[]>;
-
-  delete(workflowId: string): Promise<void>;
 
   deleteCompleted?(olderThanMs?: number): Promise<number>;
 }

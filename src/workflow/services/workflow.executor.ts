@@ -97,18 +97,11 @@ export class WorkflowExecutor {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private async persist(
-    state: WorkflowExecutionState,
-    expectedVersion: number,
-  ): Promise<void> {
-    await this.stateStore.save(state, expectedVersion);
-  }
-
   private async persistTransition(
     previousState: WorkflowExecutionState,
     nextState: WorkflowExecutionState,
   ): Promise<void> {
-    await this.persist(nextState, previousState.stateVersion);
+    await this.stateStore.save(previousState, nextState);
   }
 
   private async run(
@@ -120,10 +113,6 @@ export class WorkflowExecutor {
 
     while (state.currentStep !== undefined) {
       const currentStep = state.currentStep;
-
-      state = this.transitions.next(state, {
-        iteration: state.iteration + 1,
-      });
 
       if (state.iteration > DEFAULT_MAX_WORKFLOW_ITERATIONS) {
         throw new WorkflowExecutionError(
@@ -173,30 +162,22 @@ export class WorkflowExecutor {
         );
       }
 
-      state = this.transitions.next(state, {
-        history: [
-          ...state.history,
-          {
-            step: step.metadata.step,
-            startedAt,
-            completedAt,
-            durationMs: completedAt.getTime() - startedAt.getTime(),
-            status: 'completed',
-          },
-        ],
-        status: result.waitForSignal ? 'waiting' : 'running',
-        currentStep: result.nextStep,
-        executingStep: undefined,
-        stepStartedAt: undefined,
-        updatedAt: new Date(),
-        waitingForSignal: result.waitForSignal,
-        data: {
-          ...state.data,
-          ...(result.data ?? {}),
+      const previousCompletedState = state;
+      state = this.transitions.completeStep(
+        state,
+        {
+          step: step.metadata.step,
+          startedAt,
+          completedAt,
+          durationMs: completedAt.getTime() - startedAt.getTime(),
+          status: 'completed',
         },
-      });
+        result.nextStep,
+        result.waitForSignal,
+        result.data,
+      );
 
-      await this.persist(state, state.stateVersion);
+      await this.persistTransition(previousCompletedState, state);
 
       if (result.waitForSignal) {
         break;
@@ -234,7 +215,7 @@ export class WorkflowExecutor {
       },
     };
 
-    await this.persist(state, state.stateVersion);
+    await this.stateStore.insert(state);
 
     try {
       state = await this.run(workflow, state);
@@ -242,40 +223,30 @@ export class WorkflowExecutor {
       const failedAt = new Date();
       const failedStep = state.currentStep;
 
-      state = this.transitions.next(state, {
-        history: failedStep
-          ? [
-              ...state.history,
-              {
-                step: failedStep,
-                startedAt: state.stepStartedAt ?? failedAt,
-                completedAt: failedAt,
-                status: 'failed',
-                error: this.serializeError(error),
-              },
-            ]
-          : state.history,
-        status: 'failed',
-        failedAt,
-        updatedAt: failedAt,
-        failedStep,
-        failureCount: (state.failureCount ?? 0) + 1,
-        lastError: this.serializeError(error),
-      });
+      const previousFailedState = state;
 
-      await this.persist(state, state.stateVersion);
+      if (failedStep) {
+        state = this.transitions.failStep(
+          state,
+          {
+            step: failedStep,
+            startedAt: state.stepStartedAt ?? failedAt,
+            completedAt: failedAt,
+            status: 'failed',
+            error: this.serializeError(error),
+          },
+          this.serializeError(error),
+        );
+
+        await this.persistTransition(previousFailedState, state);
+      }
 
       throw error;
     }
 
     if (state.status !== 'waiting') {
-      const completedAt = new Date();
       const previousState = state;
-      state = this.transitions.next(state, {
-        status: 'completed',
-        completedAt,
-        updatedAt: completedAt,
-      });
+      state = this.transitions.completeWorkflow(state);
       await this.persistTransition(previousState, state);
     }
 
@@ -311,16 +282,19 @@ export class WorkflowExecutor {
       );
     }
 
+    if (state.status === 'waiting' && state.waitingForSignal) {
+      throw new WorkflowExecutionError(
+        `Workflow '${workflowId}' is waiting for signal '${state.waitingForSignal.name}'`,
+      );
+    }
+
     const workflow = this.registry.get(
       state.workflowName,
       state.workflowVersion,
     );
     const previousState = state;
 
-    const resumedState = this.transitions.next(state, {
-      status: 'running',
-      updatedAt: new Date(),
-    });
+    const resumedState = this.transitions.resume(state);
 
     await this.persistTransition(previousState, resumedState);
 
@@ -330,34 +304,29 @@ export class WorkflowExecutor {
       finalState = await this.run(workflow, resumedState);
     } catch (error) {
       const failedAt = new Date();
-      await this.stateStore.save(
-        this.transitions.next(resumedState, {
-          recoveryReason: 'process-crash',
-          status: 'failed',
-          requiresRecovery: true,
-          failedAt,
-          updatedAt: failedAt,
-          failedStep: resumedState.currentStep,
-          failureCount: (resumedState.failureCount ?? 0) + 1,
-          lastError: this.serializeError(error),
-        }),
-      );
+      const failedState = this.transitions.next(resumedState, {
+        recoveryReason: 'process-crash',
+        status: 'failed',
+        requiresRecovery: true,
+        failedAt,
+        updatedAt: failedAt,
+        failedStep: resumedState.currentStep,
+        failureCount: (resumedState.failureCount ?? 0) + 1,
+        lastError: this.serializeError(error),
+      });
+
+      await this.stateStore.save(resumedState, failedState);
 
       throw error;
     }
 
-    const now = new Date();
     const isWaiting = !!finalState.waitingForSignal;
-    const savedFinal = this.transitions.next(finalState, {
-      status: isWaiting ? 'waiting' : 'completed',
-      completedAt: isWaiting ? undefined : now,
-      updatedAt: now,
-      ...(isWaiting
-        ? {}
-        : { failedAt: undefined, failedStep: undefined, lastError: undefined }),
-    });
 
-    await this.persist(savedFinal, savedFinal.stateVersion);
+    const savedFinal = isWaiting
+      ? finalState
+      : this.transitions.completeWorkflow(finalState);
+
+    await this.stateStore.save(finalState, savedFinal);
 
     return this.toResult(savedFinal);
   }
@@ -378,13 +347,9 @@ export class WorkflowExecutor {
       );
     }
 
-    const resumedState = this.transitions.next(state, {
-      waitingForSignal: undefined,
-      status: 'running',
-      updatedAt: new Date(),
-    });
+    const resumedState = this.transitions.resume(state);
 
-    await this.persist(resumedState, resumedState.stateVersion);
+    await this.stateStore.save(state, resumedState);
 
     const workflow = this.registry.get(
       resumedState.workflowName,
@@ -397,30 +362,26 @@ export class WorkflowExecutor {
       finalState = await this.run(workflow, resumedState, signal);
     } catch (error) {
       const failedAt = new Date();
-      await this.stateStore.save(
-        this.transitions.next(resumedState, {
-          status: 'failed',
-          failedAt,
-          updatedAt: failedAt,
-          failedStep: resumedState.currentStep,
-          failureCount: (resumedState.failureCount ?? 0) + 1,
-          lastError: this.serializeError(error),
-        }),
-      );
+      const failedState = this.transitions.next(resumedState, {
+        status: 'failed',
+        failedAt,
+        updatedAt: failedAt,
+        failedStep: resumedState.currentStep,
+        failureCount: (resumedState.failureCount ?? 0) + 1,
+        lastError: this.serializeError(error),
+      });
 
+      await this.stateStore.save(resumedState, failedState);
       throw error;
     }
 
-    const now = new Date();
-
     const isWaiting = !!finalState.waitingForSignal;
-    const savedFinal = this.transitions.next(finalState, {
-      status: isWaiting ? 'waiting' : 'completed',
-      completedAt: isWaiting ? undefined : now,
-      updatedAt: now,
-    });
 
-    await this.stateStore.save(savedFinal);
+    const savedFinal = isWaiting
+      ? finalState
+      : this.transitions.completeWorkflow(finalState);
+
+    await this.stateStore.save(finalState, savedFinal);
 
     return this.toResult(savedFinal);
   }

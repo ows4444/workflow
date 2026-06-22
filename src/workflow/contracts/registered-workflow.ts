@@ -13,7 +13,5 @@ export interface RegisteredWorkflowStep {
 export interface RegisteredWorkflow {
   readonly metadata: WorkflowMetadata;
 
-  readonly workflowType: Type<unknown>;
-
   readonly steps: Map<string, RegisteredWorkflowStep>;
 }

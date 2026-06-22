@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { RegisteredWorkflow } from '../contracts/registered-workflow';
 import { WorkflowConfigurationError } from '../errors/workflow.errors';
+import { WorkflowStepId } from '../contracts/workflow-step-id';
 
 @Injectable()
 export class WorkflowDefinitionValidator {
@@ -76,7 +77,7 @@ export class WorkflowDefinitionValidator {
       visited.add(step);
       recursion.add(step);
 
-      for (const next of transitions[step] ?? []) {
+      for (const next of transitions[step as WorkflowStepId] ?? []) {
         if (dfs(next)) {
           return true;
         }
