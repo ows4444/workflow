@@ -12,6 +12,7 @@ export class WorkflowDefinitionValidator {
     this.validateReachability(workflow);
     this.validateCycles(workflow);
     this.validateTerminalSteps(workflow);
+    this.validateRetryPolicy(workflow);
   }
 
   private validateTerminalSteps(workflow: RegisteredWorkflow): void {
@@ -20,9 +21,23 @@ export class WorkflowDefinitionValidator {
         (workflow.metadata.definition.transitions[step] ?? []).length === 0,
     );
 
-    if (workflow.metadata.definition.allowCycles && !hasTerminalStep) {
+    if (!workflow.metadata.definition.allowCycles && !hasTerminalStep) {
       throw new WorkflowConfigurationError(
         `Workflow '${workflow.metadata.name}' has no terminal step`,
+      );
+    }
+  }
+
+  private validateRetryPolicy(workflow: RegisteredWorkflow): void {
+    const retry = workflow.metadata.retries;
+
+    if (!retry) {
+      return;
+    }
+
+    if (retry.maxAttempts < 1) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' maxAttempts must be >= 1`,
       );
     }
   }
@@ -108,7 +123,10 @@ export class WorkflowDefinitionValidator {
   private validateTransitions(workflow: RegisteredWorkflow): void {
     const transitions = workflow.metadata.definition.transitions;
 
-    for (const [source, targets] of Object.entries(transitions)) {
+    for (const [source, targets] of Object.entries(transitions) as [
+      WorkflowStepId,
+      readonly WorkflowStepId[],
+    ][]) {
       if (!workflow.steps.has(source)) {
         throw new WorkflowConfigurationError(
           `Workflow '${workflow.metadata.name}' transition source '${source}' does not exist`,

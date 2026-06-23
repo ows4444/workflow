@@ -1,7 +1,9 @@
+import { WorkflowStatus } from './workflow-status';
+
 export interface WorkflowExecutionResult {
   readonly workflowId: string;
 
-  readonly status: 'waiting' | 'completed' | 'failed';
+  readonly status: WorkflowStatus;
 
   readonly currentStep?: string;
 

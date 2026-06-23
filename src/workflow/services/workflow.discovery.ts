@@ -6,12 +6,19 @@ import { WORKFLOW_STEP_METADATA } from '../constants/workflow.constants';
 
 import { WorkflowMetadata } from '../contracts/workflow-metadata';
 import { WorkflowStepMetadata } from '../contracts/workflow-step-metadata';
-import { RegisteredWorkflow } from '../contracts/registered-workflow';
+import { RegisteredWorkflowStep } from '../contracts/registered-workflow';
 
 import { WorkflowRegistry } from './workflow.registry';
 import { WorkflowDefinitionValidator } from './workflow-definition.validator';
 import { WorkflowConfigurationError } from '../errors/workflow.errors';
 import { WorkflowStepHandler } from '../contracts/workflow-step-handler';
+import { WorkflowStepId } from '../contracts/workflow-step-id';
+
+interface MutableRegisteredWorkflow {
+  readonly metadata: WorkflowMetadata;
+  readonly workflowType: Type<unknown>;
+  readonly steps: Map<WorkflowStepId, RegisteredWorkflowStep>;
+}
 
 @Injectable()
 export class WorkflowDiscovery implements OnModuleInit {
@@ -25,7 +32,7 @@ export class WorkflowDiscovery implements OnModuleInit {
   onModuleInit(): void {
     const providers = this.discovery.getProviders();
 
-    const workflows = new Map<string, RegisteredWorkflow>();
+    const workflows = new Map<string, MutableRegisteredWorkflow>();
 
     const workflowKey = (name: string, version: number) => `${name}:${version}`;
 

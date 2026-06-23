@@ -1,33 +1,40 @@
+import { WorkflowFailure } from './workflow-failure';
 import { WorkflowSignal } from './workflow-signal';
-import { WorkflowStepExecution } from './workflow-step-execution';
+import { WorkflowStatus } from './workflow-status';
 import { WorkflowStepId } from './workflow-step-id';
 
-export interface WorkflowExecutionState {
+export interface WorkflowExecutionState<
+  TState extends Record<string, unknown> = Record<string, unknown>,
+> {
   readonly executionId: string;
+
+  readonly correlationId?: string;
 
   readonly workflowId: string;
 
   readonly workflowName: string;
 
-  readonly status: 'running' | 'waiting' | 'completed' | 'failed';
+  readonly status: WorkflowStatus;
 
   readonly recoveryReason?: 'process-crash' | 'timeout' | 'unknown';
 
   readonly waitingForSignal?: WorkflowSignal;
 
-  readonly executingStep?: string;
+  readonly executingStep?: WorkflowStepId;
 
   readonly stepStartedAt?: Date;
 
   readonly requiresRecovery?: boolean;
 
-  readonly history: readonly WorkflowStepExecution[];
+  readonly historyCount: number;
 
-  readonly lastError?: string;
+  readonly lastFailure?: WorkflowFailure;
 
   readonly failedStep?: string;
 
   readonly failureCount?: number;
+
+  readonly retryCount?: number;
 
   readonly stateVersion: number;
 
@@ -45,5 +52,5 @@ export interface WorkflowExecutionState {
 
   readonly iteration: number;
 
-  readonly data: Readonly<Record<string, unknown>>;
+  readonly data: Readonly<TState>;
 }

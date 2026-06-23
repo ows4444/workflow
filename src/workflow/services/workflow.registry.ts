@@ -37,10 +37,7 @@ export class WorkflowRegistry {
       );
     }
 
-    this.workflows.set(
-      this.buildKey(workflow.metadata.name, workflow.metadata.version),
-      workflow,
-    );
+    this.workflows.set(key, workflow);
   }
 
   get(name: string, version: number): RegisteredWorkflow {

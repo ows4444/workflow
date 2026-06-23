@@ -9,6 +9,12 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
   private readonly states = new Map<string, WorkflowExecutionState>();
 
   async insert(state: WorkflowExecutionState): Promise<void> {
+    if (this.states.has(state.workflowId)) {
+      throw new WorkflowConcurrencyError(
+        `Workflow '${state.workflowId}' already exists`,
+      );
+    }
+
     this.states.set(state.workflowId, state);
   }
 
@@ -38,7 +44,7 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
   async save(
     previousState: WorkflowExecutionState,
     nextState: WorkflowExecutionState,
-  ): Promise<void> {
+  ): Promise<WorkflowExecutionState> {
     const existing = this.states.get(nextState.workflowId);
 
     if (!existing) {
@@ -54,6 +60,8 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
     }
 
     this.states.set(nextState.workflowId, nextState);
+
+    return nextState;
   }
 
   async load(workflowId: string): Promise<WorkflowExecutionState | null> {

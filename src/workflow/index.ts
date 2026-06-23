@@ -17,3 +17,4 @@ export * from './contracts/workflow-step-id';
 export * from './constants/workflow.tokens';
 export * from './contracts/workflow-signal';
 export * from './errors/workflow.errors';
+export * from './contracts/workflow-status';

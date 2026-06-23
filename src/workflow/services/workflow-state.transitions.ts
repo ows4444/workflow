@@ -4,11 +4,20 @@ import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
 import { WorkflowSignal } from '../contracts/workflow-signal';
 import { WorkflowStepId } from '../contracts/workflow-step-id';
 import { WorkflowStepExecution } from '../contracts/workflow-step-execution';
+import { WorkflowFailure } from '../contracts/workflow-failure';
+import { WorkflowStateUpdate } from '../contracts/workflow-state-update';
 
 @Injectable()
 export class WorkflowStateTransitions {
   private now(): Date {
     return new Date();
+  }
+
+  bumpVersion(state: WorkflowExecutionState): WorkflowExecutionState {
+    return {
+      ...state,
+      stateVersion: state.stateVersion + 1,
+    };
   }
 
   startStep(
@@ -20,18 +29,16 @@ export class WorkflowStateTransitions {
     return this.next(state, {
       iteration: state.iteration + 1,
       executingStep: step,
+      retryCount: 0,
       stepStartedAt: now,
       updatedAt: now,
     });
   }
 
-  resume(state: WorkflowExecutionState): WorkflowExecutionState {
-    const now = this.now();
-
+  incrementRetry(state: WorkflowExecutionState): WorkflowExecutionState {
     return this.next(state, {
-      status: 'running',
-      waitingForSignal: undefined,
-      updatedAt: now,
+      retryCount: (state.retryCount ?? 0) + 1,
+      updatedAt: this.now(),
     });
   }
 
@@ -40,36 +47,75 @@ export class WorkflowStateTransitions {
 
     return this.next(state, {
       status: 'completed',
-      waitingForSignal: undefined,
+      currentStep: undefined,
       executingStep: undefined,
+      waitingForSignal: undefined,
       stepStartedAt: undefined,
       completedAt: now,
       updatedAt: now,
       failedAt: undefined,
       failedStep: undefined,
-      lastError: undefined,
+      lastFailure: undefined,
     });
   }
 
   failStep(
     state: WorkflowExecutionState,
     execution: WorkflowStepExecution,
-    error: string,
+    failure: WorkflowFailure,
   ): WorkflowExecutionState {
     const now = this.now();
 
     return this.next(state, {
-      history: state.executingStep
-        ? [...state.history, execution]
-        : state.history,
+      historyCount: state.historyCount + 1,
       status: 'failed',
+      retryCount: 0,
       executingStep: undefined,
       stepStartedAt: undefined,
       failedAt: now,
       updatedAt: now,
       failedStep: execution.step,
-      lastError: error,
+      lastFailure: failure,
       failureCount: (state.failureCount ?? 0) + 1,
+    });
+  }
+
+  failWorkflow(
+    state: WorkflowExecutionState,
+    failure: WorkflowFailure,
+  ): WorkflowExecutionState {
+    const now = this.now();
+
+    return this.next(state, {
+      status: 'failed',
+      retryCount: 0,
+      failedAt: now,
+      updatedAt: now,
+      failedStep: state.currentStep,
+      lastFailure: failure,
+      failureCount: (state.failureCount ?? 0) + 1,
+      waitingForSignal: undefined,
+      executingStep: undefined,
+      stepStartedAt: undefined,
+    });
+  }
+
+  resumeFromSignal(state: WorkflowExecutionState): WorkflowExecutionState {
+    return this.next(state, {
+      status: 'running',
+      waitingForSignal: undefined,
+      updatedAt: this.now(),
+    });
+  }
+
+  markRecoverable(
+    state: WorkflowExecutionState,
+    reason: WorkflowExecutionState['recoveryReason'],
+  ): WorkflowExecutionState {
+    return this.next(state, {
+      requiresRecovery: true,
+      recoveryReason: reason,
+      updatedAt: this.now(),
     });
   }
 
@@ -82,9 +128,10 @@ export class WorkflowStateTransitions {
   ): WorkflowExecutionState {
     const now = this.now();
     return this.next(state, {
-      history: [...state.history, execution],
-      currentStep: nextStep,
+      historyCount: state.historyCount + 1,
+      retryCount: 0,
       executingStep: undefined,
+      currentStep: nextStep,
       stepStartedAt: undefined,
       waitingForSignal: waitForSignal,
       status: waitForSignal ? 'waiting' : 'running',
@@ -98,12 +145,11 @@ export class WorkflowStateTransitions {
 
   next(
     state: WorkflowExecutionState,
-    changes: Partial<WorkflowExecutionState>,
+    changes: WorkflowStateUpdate,
   ): WorkflowExecutionState {
     return {
       ...state,
       ...changes,
-      stateVersion: state.stateVersion + 1,
     };
   }
 }

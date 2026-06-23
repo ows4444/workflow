@@ -1,5 +1,13 @@
-import { Column, Entity, PrimaryColumn, VersionColumn } from 'typeorm';
+import type { WorkflowSignal } from '../../contracts/workflow-signal';
+import { WorkflowExecutionState } from '../../contracts/workflow-execution-state';
+import type { WorkflowFailure } from '../../contracts/workflow-failure';
+import { type WorkflowStatus } from '../../contracts/workflow-status';
+import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
+@Index(['status'])
+@Index(['status', 'stepStartedAt'])
+@Index(['status', 'completedAt'])
+@Index(['workflowId', 'stateVersion'])
 @Entity('workflow_executions')
 export class WorkflowStateEntity {
   @PrimaryColumn()
@@ -15,31 +23,37 @@ export class WorkflowStateEntity {
   workflowVersion!: number;
 
   @Column()
-  status!: string;
+  status!: WorkflowStatus;
 
   @Column({ nullable: true })
   currentStep?: string;
 
   @Column({ nullable: true })
-  executingStep?: string;
-
-  @Column({ nullable: true })
   failedStep?: string;
 
-  @Column({ nullable: true })
-  lastError?: string;
+  @Column({ type: 'json', nullable: true })
+  lastFailure?: WorkflowFailure;
 
   @Column({ nullable: true })
-  recoveryReason?: string;
+  recoveryReason?: WorkflowExecutionState['recoveryReason'];
 
   @Column({ type: 'json' })
   data!: Record<string, unknown>;
 
-  @Column({ type: 'json' })
-  history!: unknown[];
+  @Column()
+  historyCount!: number;
+
+  @Column({ nullable: true })
+  correlationId?: string;
+
+  @Column({ nullable: true })
+  executingStep?: string;
+
+  @Column({ nullable: true })
+  retryCount?: number;
 
   @Column({ nullable: true, type: 'json' })
-  waitingForSignal?: unknown;
+  waitingForSignal?: WorkflowSignal;
 
   @Column()
   iteration!: number;
@@ -47,24 +61,24 @@ export class WorkflowStateEntity {
   @Column({ nullable: true })
   failureCount?: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'boolean', nullable: true })
   requiresRecovery?: boolean;
 
-  @Column()
+  @Column({ type: 'datetime' })
   createdAt!: Date;
 
-  @Column()
+  @Column({ type: 'datetime' })
   updatedAt!: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   completedAt?: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   failedAt?: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   stepStartedAt?: Date;
 
-  @VersionColumn()
+  @Column()
   stateVersion!: number;
 }

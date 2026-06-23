@@ -6,7 +6,7 @@ export interface WorkflowStateStore {
   save(
     previousState: WorkflowExecutionState,
     nextState: WorkflowExecutionState,
-  ): Promise<void>;
+  ): Promise<WorkflowExecutionState>;
 
   load(workflowId: string): Promise<WorkflowExecutionState | null>;
 
