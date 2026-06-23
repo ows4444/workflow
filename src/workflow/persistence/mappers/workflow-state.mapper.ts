@@ -2,8 +2,12 @@ import { WorkflowExecutionState } from '../../contracts/workflow-execution-state
 import { WorkflowStateEntity } from '../entities/workflow-state.entity';
 import { createWorkflowStepId } from '../../contracts/workflow-step-id';
 
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+
 export class WorkflowStateMapper {
-  static toPersistence(state: WorkflowExecutionState): WorkflowStateEntity {
+  static toPersistence(
+    state: WorkflowExecutionState,
+  ): QueryDeepPartialEntity<WorkflowStateEntity> {
     return {
       workflowId: state.workflowId,
       executionId: state.executionId,
@@ -14,12 +18,14 @@ export class WorkflowStateMapper {
       failedStep: state.failedStep,
       lastFailure: state.lastFailure,
       recoveryReason: state.recoveryReason,
-      data: { ...state.data },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: state.data as any,
       historyCount: state.historyCount,
       correlationId: state.correlationId,
       executingStep: state.executingStep,
       retryCount: state.retryCount,
-      waitingForSignal: state.waitingForSignal,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      waitingForSignal: state.waitingForSignal as any,
       iteration: state.iteration,
       failureCount: state.failureCount,
       requiresRecovery: state.requiresRecovery,
