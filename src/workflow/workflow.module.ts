@@ -17,12 +17,14 @@ import { WorkflowStateValidator } from './services/workflow-state.validator';
 import { InMemoryIdempotencyStore } from './services/in-memory-idempotency.store';
 import { WorkflowHistoryService } from './services/workflow-history.service';
 import { InMemoryHistoryStore } from './services/in-memory-history.store';
+import { WorkflowStateFactory } from './services/workflow-state.factory';
 
 @Module({
   imports: [DiscoveryModule],
   providers: [
     WorkflowStateTransitions,
     WorkflowStateValidator,
+    WorkflowStateFactory,
     WorkflowRegistry,
     WorkflowDiscovery,
     WorkflowDefinitionValidator,
