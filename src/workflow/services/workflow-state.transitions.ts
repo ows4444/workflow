@@ -124,7 +124,7 @@ export class WorkflowStateTransitions {
     execution: WorkflowStepExecution,
     nextStep?: WorkflowStepId,
     waitForSignal?: WorkflowSignal,
-    data?: Record<string, unknown>,
+    data?: object,
   ): WorkflowExecutionState {
     const now = this.now();
     return this.next(state, {

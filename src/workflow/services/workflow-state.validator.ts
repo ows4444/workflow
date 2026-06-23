@@ -9,16 +9,6 @@ export class WorkflowStateValidator {
     switch (state.status) {
       case 'running':
         if (
-          state.executingStep === undefined &&
-          state.currentStep !== undefined &&
-          !state.requiresRecovery &&
-          state.iteration > 0
-        ) {
-          throw new WorkflowExecutionError(
-            `Running workflow '${state.workflowId}' is not executing a step`,
-          );
-        }
-        if (
           state.executingStep !== undefined &&
           state.stepStartedAt === undefined
         ) {

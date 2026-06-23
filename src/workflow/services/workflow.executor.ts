@@ -287,8 +287,10 @@ export class WorkflowExecutor {
     try {
       state = await this.run(workflow, state);
     } catch (error) {
+      state = (await this.stateStore.load(state.workflowId)) ?? state;
+
       const failedAt = new Date();
-      const failedStep = state.currentStep ?? state.executingStep;
+      const failedStep = state.executingStep ?? state.currentStep;
 
       const previousState = state;
 
