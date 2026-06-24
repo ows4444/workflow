@@ -22,3 +22,7 @@ export * from './contracts/workflow-signal';
 export * from './errors/workflow.errors';
 export * from './contracts/workflow-status';
 export * from './persistence/workflow-persistence.module';
+
+export * from './domain/workflow-execution';
+export * from './domain/workflow-execution.mapper';
+export * from './domain/workflow-execution.factory';

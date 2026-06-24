@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 
 import { WorkflowSignalStore } from '../../contracts/stores/workflow-signal.store';
 import { WorkflowSignalRecord } from '../../contracts/workflow-signal-record';
@@ -39,15 +39,26 @@ export class TypeOrmWorkflowSignalStore implements WorkflowSignalStore {
   }
 
   async insert(record: WorkflowSignalRecord): Promise<void> {
-    await this.repository.insert({
-      signalId: record.signalId,
-      workflowId: record.workflowId,
-      signalName: record.signal.name,
-      payload: record.signal.payload,
-      processed: record.processed,
-      createdAt: record.createdAt,
-      processedAt: record.processedAt,
-    });
+    try {
+      await this.repository.insert({
+        signalId: record.signalId,
+        workflowId: record.workflowId,
+        signalName: record.signal.name,
+        payload: record.signal.payload,
+        processed: record.processed,
+        createdAt: record.createdAt,
+        processedAt: record.processedAt,
+      });
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError?.code === 'ER_DUP_ENTRY' ||
+          error.driverError?.code === '23505')
+      ) {
+        return; // idempotent — signal already persisted
+      }
+      throw error;
+    }
   }
 
   async exists(signalId: string): Promise<boolean> {

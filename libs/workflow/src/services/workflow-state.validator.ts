@@ -6,6 +6,12 @@ import { WorkflowExecutionError } from '../errors/workflow.errors';
 @Injectable()
 export class WorkflowStateValidator {
   validate(state: WorkflowExecutionState): void {
+    if (state.stateVersion < 0) {
+      throw new WorkflowExecutionError(
+        `Workflow '${state.workflowId}' has invalid stateVersion ${state.stateVersion}`,
+      );
+    }
+
     switch (state.status) {
       case 'running':
         if (
@@ -52,15 +58,30 @@ export class WorkflowStateValidator {
           );
         }
 
-        if (!state.currentStep) {
+        if (!state.resumeStep) {
           throw new WorkflowExecutionError(
-            `Waiting workflow '${state.workflowId}' has no current step`,
+            `Waiting workflow '${state.workflowId}' has no resume step`,
           );
         }
 
         if (state.executingStep) {
           throw new WorkflowExecutionError(
             `Waiting workflow '${state.workflowId}' is still executing step '${state.executingStep}'`,
+          );
+        }
+
+        break;
+
+      case 'cancelled':
+        if (state.executingStep) {
+          throw new WorkflowExecutionError(
+            `Cancelled workflow '${state.workflowId}' is still executing`,
+          );
+        }
+
+        if (state.waitingForSignal) {
+          throw new WorkflowExecutionError(
+            `Cancelled workflow '${state.workflowId}' cannot wait for signal`,
           );
         }
 

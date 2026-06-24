@@ -17,6 +17,9 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
 
     this.states.set(state.workflowId, state);
   }
+  async findRecoverable() {
+    return this.values().filter((x) => x.requiresRecovery === true);
+  }
 
   async findRunning() {
     return this.values().filter((x) => x.status === 'running');

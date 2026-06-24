@@ -35,6 +35,12 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     }
   }
 
+  async findRecoverable(): Promise<WorkflowExecutionState[]> {
+    return this.repository
+      .find({ where: { requiresRecovery: true } })
+      .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
+  }
+
   async findStuck(olderThanMs: number): Promise<WorkflowExecutionState[]> {
     const threshold = new Date(Date.now() - olderThanMs);
 

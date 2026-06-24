@@ -50,6 +50,9 @@ export class WorkflowStateEntity {
   executingStep?: string;
 
   @Column({ nullable: true })
+  resumeStep?: string;
+
+  @Column({ nullable: true })
   retryCount?: number;
 
   @Column({ nullable: true, type: 'json' })
@@ -63,6 +66,15 @@ export class WorkflowStateEntity {
 
   @Column({ type: 'boolean', nullable: true })
   requiresRecovery?: boolean;
+
+  @Column({ nullable: true, default: 0 })
+  recoveryAttempts?: number;
+
+  @Column({
+    type: 'datetime',
+    nullable: true,
+  })
+  lastRecoveryAt?: Date;
 
   @Column({ type: 'datetime' })
   createdAt!: Date;

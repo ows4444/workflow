@@ -18,7 +18,13 @@ export interface WorkflowExecutionState<
 
   readonly recoveryReason?: 'process-crash' | 'timeout' | 'unknown';
 
+  readonly recoveryAttempts?: number;
+
+  readonly lastRecoveryAt?: Date;
+
   readonly waitingForSignal?: WorkflowSignal;
+
+  readonly resumeStep?: WorkflowStepId;
 
   readonly executingStep?: WorkflowStepId;
 

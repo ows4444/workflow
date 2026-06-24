@@ -23,12 +23,15 @@ export class WorkflowStateMapper {
       historyCount: state.historyCount,
       correlationId: state.correlationId,
       executingStep: state.executingStep,
+      resumeStep: state.resumeStep,
       retryCount: state.retryCount,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       waitingForSignal: state.waitingForSignal as any,
       iteration: state.iteration,
       failureCount: state.failureCount,
       requiresRecovery: state.requiresRecovery,
+      recoveryAttempts: state.recoveryAttempts,
+      lastRecoveryAt: state.lastRecoveryAt,
       createdAt: state.createdAt,
       updatedAt: state.updatedAt,
       completedAt: state.completedAt,
@@ -58,11 +61,18 @@ export class WorkflowStateMapper {
       ...(entity.executingStep
         ? { executingStep: createWorkflowStepId(entity.executingStep) }
         : {}),
+
+      ...(entity.resumeStep
+        ? { resumeStep: createWorkflowStepId(entity.resumeStep) }
+        : {}),
+
       retryCount: entity.retryCount,
       waitingForSignal: entity.waitingForSignal,
       iteration: entity.iteration,
       failureCount: entity.failureCount,
       requiresRecovery: entity.requiresRecovery,
+      recoveryAttempts: entity.recoveryAttempts,
+      lastRecoveryAt: entity.lastRecoveryAt,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       completedAt: entity.completedAt,

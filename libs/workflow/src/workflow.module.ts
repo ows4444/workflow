@@ -12,7 +12,7 @@ import { WorkflowDiscovery } from './services/workflow.discovery';
 import { WorkflowDefinitionValidator } from './services/workflow-definition.validator';
 import { WorkflowStepResolver } from './services/workflow-step-resolver';
 import { WorkflowExecutor } from './services/workflow.executor';
-import { WorkflowStateTransitions } from './services/workflow-state.transitions';
+
 import { WorkflowRecoveryService } from './services/workflow-recovery.service';
 import { WorkflowStateValidator } from './services/workflow-state.validator';
 import { WorkflowStateFactory } from './services/workflow-state.factory';
@@ -25,22 +25,27 @@ import { InMemoryWorkflowStateStore } from './services/in-memory-workflow-state.
 import { InMemoryWorkflowSignalStore } from './services/in-memory-workflow-signal.store';
 
 import { WorkflowAutoRecoveryService } from './services/workflow-auto-recovery.service';
+import { WorkflowExecutionFactory } from './domain/workflow-execution.factory';
+import { WorkflowStepExecutor } from './services/workflow-step.executor';
+import { WorkflowFailureService } from './services/workflow-failure.service';
 
 @Module({
   imports: [DiscoveryModule],
   providers: [
-    WorkflowStateTransitions,
     WorkflowStateValidator,
     WorkflowStateFactory,
+    WorkflowExecutionFactory,
     WorkflowRegistry,
     WorkflowDiscovery,
     WorkflowDefinitionValidator,
     WorkflowStepResolver,
     WorkflowExecutor,
+    WorkflowStepExecutor,
     WorkflowRecoveryService,
     WorkflowHistoryService,
     WorkflowSignalService,
     WorkflowAutoRecoveryService,
+    WorkflowFailureService,
 
     InMemoryIdempotencyStore,
     InMemoryWorkflowStateStore,

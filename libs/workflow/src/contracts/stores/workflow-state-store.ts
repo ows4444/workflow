@@ -18,6 +18,8 @@ export interface WorkflowStateStore {
 
   findFailed?(): Promise<WorkflowExecutionState[]>;
 
+  findRecoverable?(): Promise<WorkflowExecutionState[]>;
+
   findStuck?(olderThanMs: number): Promise<WorkflowExecutionState[]>;
 
   deleteCompleted?(olderThanMs?: number): Promise<number>;

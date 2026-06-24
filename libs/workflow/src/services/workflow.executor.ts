@@ -1,65 +1,47 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import {
-  DEFAULT_MAX_WORKFLOW_ITERATIONS,
-  DEFAULT_STEP_TIMEOUT_MS,
-} from '../constants/workflow.constants';
+import { DEFAULT_MAX_WORKFLOW_ITERATIONS } from '../constants/workflow.constants';
 import { WorkflowExecutionResult } from '../contracts/workflow-execution-result';
-import { WorkflowContext } from '../contracts/workflow-context';
-import { WorkflowExecutionError } from '../errors/workflow.errors';
 
+import { WorkflowExecutionError } from '../errors/workflow.errors';
 import { WorkflowRegistry } from './workflow.registry';
-import { WorkflowStepResolver } from './workflow-step-resolver';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
-import { type WorkflowStateStore } from '../contracts/stores/workflow-state-store';
-import {
-  WORKFLOW_IDEMPOTENCY_STORE,
-  WORKFLOW_STATE_STORE,
-} from '../constants/workflow.tokens';
+import { WORKFLOW_IDEMPOTENCY_STORE } from '../constants/workflow.tokens';
 import { RegisteredWorkflow } from '../contracts/registered-workflow';
 import { WorkflowSignal } from '../contracts/workflow-signal';
 import { WorkflowStateTransitions } from './workflow-state.transitions';
-import { WorkflowRetryMetadata } from '../metadata/workflow-retry-metadata';
-import { WorkflowStateValidator } from './workflow-state.validator';
+
 import { WorkflowStateFactory } from './workflow-state.factory';
-import { WorkflowFailure } from '../contracts/workflow-failure';
+
 import { type WorkflowIdempotencyStore } from '../contracts/stores/workflow-idempotency-store';
 import { WorkflowHistoryService } from './workflow-history.service';
-import { WorkflowFailureError } from '../errors/workflow-failure.error';
+
 import { buildSignalIdempotencyKey } from './workflow-idempotency-key';
 import { WorkflowSignalService } from './workflow-signal.service';
-
-interface RetryExecutionResult<T> {
-  readonly result: T;
-  readonly latestState: WorkflowExecutionState;
-}
+import { WorkflowStateService } from './workflow-state.service';
+import { WorkflowExecutionMapper } from '../domain/workflow-execution.mapper';
+import { WorkflowStepExecutor } from './workflow-step.executor';
+import { WorkflowFailureService } from './workflow-failure.service';
+import { WorkflowStateValidator } from './workflow-state.validator';
 
 @Injectable()
 export class WorkflowExecutor {
   constructor(
     private readonly registry: WorkflowRegistry,
-    private readonly resolver: WorkflowStepResolver,
+    private readonly stepExecutor: WorkflowStepExecutor,
     private readonly transitions: WorkflowStateTransitions,
     private readonly history: WorkflowHistoryService,
     private readonly signals: WorkflowSignalService,
 
-    @Inject(WORKFLOW_STATE_STORE)
-    private readonly stateStore: WorkflowStateStore,
-
     @Inject(WORKFLOW_IDEMPOTENCY_STORE)
     private readonly idempotencyStore: WorkflowIdempotencyStore,
 
-    private readonly stateValidator: WorkflowStateValidator,
     private readonly stateFactory: WorkflowStateFactory,
+
+    private readonly stateService: WorkflowStateService,
+    private readonly stateValidator: WorkflowStateValidator,
+    private readonly failureService: WorkflowFailureService,
   ) {}
-
-  private isRetriable(error: unknown): boolean {
-    return error instanceof WorkflowFailureError && error.retriable;
-  }
-
-  private serializeError(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
 
   private toResult(state: WorkflowExecutionState): WorkflowExecutionResult {
     return {
@@ -69,85 +51,6 @@ export class WorkflowExecutor {
       currentStep: state.currentStep,
       data: state.data,
     };
-  }
-
-  private async executeWithRetry<T>(
-    workflow: RegisteredWorkflow,
-    state: WorkflowExecutionState,
-    operation: () => Promise<T>,
-    onRetry: (state: WorkflowExecutionState) => Promise<WorkflowExecutionState>,
-  ): Promise<RetryExecutionResult<T>> {
-    const retry = workflow.metadata.retries;
-
-    if (!retry) {
-      return {
-        result: await operation(),
-        latestState: state,
-      };
-    }
-
-    const maxAttempts = Math.max(1, retry.maxAttempts);
-    let attempt = 0;
-
-    while (true) {
-      try {
-        return {
-          result: await operation(),
-          latestState: state,
-        };
-      } catch (error) {
-        if (!this.isRetriable(error)) {
-          throw error;
-        }
-
-        attempt++;
-
-        if (attempt >= maxAttempts) {
-          throw error;
-        }
-
-        state = await onRetry(state);
-
-        await this.sleep(this.computeDelay(retry, attempt));
-      }
-    }
-  }
-
-  private computeDelay(retry: WorkflowRetryMetadata, attempt: number): number {
-    let delay: number;
-
-    switch (retry.strategy) {
-      case 'fixed':
-        delay = retry.delayMs ?? 1000;
-        break;
-
-      case 'linear':
-        delay = (retry.delayMs ?? 1000) * attempt;
-        break;
-
-      case 'exponential':
-        delay = Math.min(
-          (retry.delayMs ?? 1000) * 2 ** (attempt - 1),
-          retry.maxDelayMs ?? Number.MAX_SAFE_INTEGER,
-        );
-        break;
-    }
-
-    return Math.max(0, Math.floor(delay * (0.8 + Math.random() * 0.4)));
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  private async persistTransition(
-    previous: WorkflowExecutionState,
-    next: WorkflowExecutionState,
-  ): Promise<WorkflowExecutionState> {
-    next = this.transitions.bumpVersion(next);
-    this.stateValidator.validate(next);
-
-    return this.stateStore.save(previous, next);
   }
 
   private async run(
@@ -160,7 +63,7 @@ export class WorkflowExecutor {
     while (state.currentStep !== undefined) {
       const currentStep = state.currentStep;
 
-      if (state.iteration > DEFAULT_MAX_WORKFLOW_ITERATIONS) {
+      if (state.iteration >= DEFAULT_MAX_WORKFLOW_ITERATIONS) {
         throw new WorkflowExecutionError(
           `Workflow '${state.workflowName}' exceeded max iterations`,
         );
@@ -175,39 +78,20 @@ export class WorkflowExecutor {
       const startedAt = new Date();
       const previousState = state;
 
-      state = this.transitions.startStep(state, state.currentStep);
-      state = await this.persistTransition(previousState, state);
-
-      const handler = this.resolver.resolve(step.type);
-
-      const execution = await this.executeStepWithTimeout(
-        async (abortSignal) => {
-          const context: WorkflowContext = {
-            workflowId: state.workflowId,
-            executionId: state.executionId,
-            stepExecutionKey: `${state.workflowId}:${state.currentStep}:${state.historyCount + 1}`,
-            workflowName: state.workflowName,
-            currentStep: state.currentStep,
-            data: state.data,
-            signal: pendingSignal,
-            abortSignal,
-          };
-
-          return this.executeWithRetry(
-            workflow,
-            state,
-            () => handler.execute(context),
-            async (currentState) => {
-              const next = this.transitions.incrementRetry(currentState);
-              return this.persistTransition(currentState, next);
-            },
-          );
-        },
-        step.metadata.timeoutMs,
+      state = WorkflowExecutionMapper.toState(
+        WorkflowExecutionMapper.fromState(state).startStep(state.currentStep),
       );
 
-      state = execution.latestState;
-      const result = execution.result;
+      state = await this.stateService.save(previousState, state);
+
+      const stepResult = await this.stepExecutor.execute(
+        workflow,
+        state,
+        pendingSignal,
+      );
+
+      state = stepResult.latestState;
+      const result = stepResult.result;
 
       pendingSignal = undefined;
       const completedAt = new Date();
@@ -241,7 +125,7 @@ export class WorkflowExecutor {
         result.data,
       );
 
-      state = await this.persistTransition(previousCompletedState, state);
+      state = await this.stateService.save(previousCompletedState, state);
 
       if (result.waitForSignal) {
         break;
@@ -251,28 +135,50 @@ export class WorkflowExecutor {
     return state;
   }
 
-  private toFailure(error: unknown): WorkflowFailure {
-    if (error instanceof WorkflowFailureError) {
-      return {
-        code: error.constructor.name,
-        message: error.message,
-        retriable: error.retriable,
-      };
+  async resume(workflowId: string): Promise<WorkflowExecutionResult> {
+    const state = await this.stateService.load(workflowId);
+
+    if (!state) {
+      throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
     }
 
-    if (error instanceof WorkflowExecutionError) {
-      return {
-        code: 'WORKFLOW_EXECUTION_ERROR',
-        message: error.message,
-        retriable: false,
-      };
+    if (state.status === 'waiting') {
+      return this.toResult(state);
     }
 
-    return {
-      code: 'UNKNOWN',
-      message: this.serializeError(error),
-      retriable: false,
-    };
+    if (state.status !== 'running') {
+      throw new WorkflowExecutionError(
+        `Workflow '${workflowId}' cannot be resumed from status '${state.status}'`,
+      );
+    }
+
+    const workflow = this.registry.get(
+      state.workflowName,
+      state.workflowVersion,
+    );
+
+    let finalState: WorkflowExecutionState;
+
+    try {
+      finalState = await this.run(workflow, state);
+    } catch (error) {
+      const reloadedState = (await this.stateService.load(workflowId)) ?? state;
+      await this.failureService.failExecution(reloadedState, error);
+      throw error;
+    }
+
+    if (
+      finalState.status === 'running' &&
+      finalState.currentStep === undefined
+    ) {
+      const prev = finalState;
+      finalState = await this.stateService.save(
+        prev,
+        this.transitions.completeWorkflow(finalState),
+      );
+    }
+
+    return this.toResult(finalState);
   }
 
   async execute(
@@ -282,51 +188,65 @@ export class WorkflowExecutor {
     const workflow = this.registry.getLatest(workflowName);
 
     let state = this.stateFactory.create(workflow, initialData);
-    await this.stateStore.insert(state);
+    await this.stateService.insert(state);
 
     try {
       state = await this.run(workflow, state);
     } catch (error) {
-      state = (await this.stateStore.load(state.workflowId)) ?? state;
+      const reloadedState =
+        (await this.stateService.load(state.workflowId)) ?? state;
 
       const failedAt = new Date();
-      const failedStep = state.executingStep ?? state.currentStep;
-      const previousState = state;
+      const failedStep =
+        reloadedState.executingStep ?? reloadedState.currentStep;
+      const previousState = reloadedState;
 
       if (failedStep) {
         await this.history.append(state.workflowId, {
           step: failedStep,
-          startedAt: state.stepStartedAt ?? failedAt,
+          startedAt: reloadedState.stepStartedAt ?? failedAt,
           completedAt: failedAt,
           durationMs:
-            failedAt.getTime() - (state.stepStartedAt ?? failedAt).getTime(),
+            failedAt.getTime() -
+            (reloadedState.stepStartedAt ?? failedAt).getTime(),
           status: 'failed',
-          error: this.serializeError(error),
+          error: this.failureService.serialize(error),
         });
 
+        const stepExecution = {
+          step: failedStep,
+          startedAt: reloadedState.stepStartedAt ?? failedAt,
+          completedAt: failedAt,
+          durationMs:
+            failedAt.getTime() -
+            (reloadedState.stepStartedAt ?? failedAt).getTime(),
+          status: 'failed' as const,
+          error: this.failureService.serialize(error),
+        };
+
         const failedState = this.transitions.failStep(
-          state,
-          {
-            step: failedStep,
-            startedAt: state.stepStartedAt ?? failedAt,
-            completedAt: failedAt,
-            status: 'failed',
-            error: this.serializeError(error),
-          },
-          this.toFailure(error),
+          reloadedState,
+          stepExecution,
+          this.failureService.toFailure(error),
         );
 
-        await this.persistTransition(previousState, failedState);
+        await this.stateService.save(previousState, failedState);
       }
 
       throw error;
     }
 
-    if (state.status !== 'waiting') {
+    if (state.status === 'running' && state.currentStep === undefined) {
       const previousState = state;
       state = this.transitions.completeWorkflow(state);
-      state = await this.persistTransition(previousState, state);
+      state = await this.stateService.save(previousState, state);
     }
+
+    return this.toResult(state);
+  }
+
+  async cancel(workflowId: string): Promise<WorkflowExecutionResult> {
+    const state = await this.stateService.cancel(workflowId);
 
     return this.toResult(state);
   }
@@ -346,7 +266,7 @@ export class WorkflowExecutor {
     );
 
     if (!acquired) {
-      const existing = await this.stateStore.load(workflowId);
+      const existing = await this.stateService.load(workflowId);
 
       if (!existing) {
         throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
@@ -361,7 +281,7 @@ export class WorkflowExecutor {
       const existing = await this.signals.load(signal.signalId);
 
       if (existing?.processed) {
-        const current = await this.stateStore.load(workflowId);
+        const current = await this.stateService.load(workflowId);
 
         if (!current) {
           throw new WorkflowExecutionError(
@@ -373,7 +293,7 @@ export class WorkflowExecutor {
       }
     }
 
-    let state = await this.stateStore.load(workflowId);
+    let state = await this.stateService.load(workflowId);
 
     if (!state) {
       throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
@@ -388,7 +308,7 @@ export class WorkflowExecutor {
     }
 
     const nextState = this.transitions.resumeFromSignal(state);
-    state = await this.persistTransition(state, nextState);
+    state = await this.stateService.save(state, nextState);
 
     const workflow = this.registry.get(
       nextState.workflowName,
@@ -401,35 +321,38 @@ export class WorkflowExecutor {
       finalState = await this.run(workflow, state, signal);
     } catch (error) {
       const latest =
-        (await this.stateStore.load(workflowId)) ?? finalState ?? state;
-      if (state.executingStep) {
+        (await this.stateService.load(workflowId)) ?? finalState ?? state;
+      if (latest.executingStep) {
         const failedAt = new Date();
 
         await this.history.append(state.workflowId, {
-          step: state.executingStep,
-          startedAt: state.stepStartedAt ?? failedAt,
+          step: latest.executingStep,
+          startedAt: latest.stepStartedAt ?? failedAt,
           completedAt: failedAt,
           durationMs:
-            failedAt.getTime() - (state.stepStartedAt ?? failedAt).getTime(),
+            failedAt.getTime() - (latest.stepStartedAt ?? failedAt).getTime(),
           status: 'failed',
-          error: this.serializeError(error),
+          error: this.failureService.serialize(error),
         });
       }
 
       const failedState = this.transitions.failWorkflow(
         latest,
-        this.toFailure(error),
+        this.failureService.toFailure(error),
       );
 
-      await this.persistTransition(latest, failedState);
+      await this.stateService.save(latest, failedState);
 
       throw error;
     }
 
-    if (!finalState.waitingForSignal) {
+    if (
+      finalState.status === 'running' &&
+      finalState.currentStep === undefined
+    ) {
       const previousState = finalState;
 
-      finalState = await this.persistTransition(
+      finalState = await this.stateService.save(
         previousState,
         this.transitions.completeWorkflow(finalState),
       );
@@ -443,36 +366,5 @@ export class WorkflowExecutor {
     );
 
     return this.toResult(finalState);
-  }
-
-  private async executeStepWithTimeout<T>(
-    operation: (signal: AbortSignal) => Promise<T>,
-    timeoutMs = DEFAULT_STEP_TIMEOUT_MS,
-  ): Promise<T> {
-    let timeout: NodeJS.Timeout | undefined;
-    const controller = new AbortController();
-
-    try {
-      return await Promise.race([
-        operation(controller.signal),
-        new Promise<T>((_, reject) => {
-          timeout = setTimeout(() => {
-            controller.abort(
-              new WorkflowExecutionError(
-                `Step execution timeout after ${timeoutMs}ms`,
-              ),
-            );
-
-            reject(
-              new WorkflowExecutionError(
-                `Step execution timeout after ${timeoutMs}ms`,
-              ),
-            );
-          }, timeoutMs);
-        }),
-      ]);
-    } finally {
-      clearTimeout(timeout);
-    }
   }
 }

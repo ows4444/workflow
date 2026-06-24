@@ -1,16 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
+
 import { DEFAULT_STUCK_THRESHOLD_MS } from '../constants/workflow.constants';
 import { WORKFLOW_STATE_STORE } from '../constants/workflow.tokens';
+
 import { type WorkflowStateStore } from '../contracts/stores/workflow-state-store';
-import { WorkflowStateTransitions } from './workflow-state.transitions';
+
 import { WorkflowExecutionError } from '../errors/workflow.errors';
+
+import { WorkflowExecutionMapper } from '../domain/workflow-execution.mapper';
 
 @Injectable()
 export class WorkflowRecoveryService {
   constructor(
     @Inject(WORKFLOW_STATE_STORE)
     private readonly store: WorkflowStateStore,
-    private readonly transitions: WorkflowStateTransitions,
   ) {}
 
   async findStuckExecutions() {
@@ -22,6 +25,10 @@ export class WorkflowRecoveryService {
     );
   }
 
+  async findRecoverableExecutions() {
+    return (await this.store.findRecoverable?.()) ?? [];
+  }
+
   async markAsRecoverable(workflowId: string): Promise<void> {
     const state = await this.store.load(workflowId);
 
@@ -29,7 +36,9 @@ export class WorkflowRecoveryService {
       throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
     }
 
-    const next = this.transitions.markRecoverable(state, 'process-crash');
+    const next = WorkflowExecutionMapper.toState(
+      WorkflowExecutionMapper.fromState(state).markRecoverable('process-crash'),
+    );
 
     await this.store.save(state, next);
   }
