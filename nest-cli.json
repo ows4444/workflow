@@ -3,6 +3,18 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "webpack": true
+  },
+  "projects": {
+    "workflow": {
+      "type": "library",
+      "root": "libs/workflow",
+      "entryFile": "index",
+      "sourceRoot": "libs/workflow/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/workflow/tsconfig.lib.json"
+      }
+    }
   }
 }

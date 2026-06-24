@@ -6,8 +6,8 @@ import {
   WorkflowContext,
   WorkflowStepHandler,
   WorkflowStepResult,
-} from '../../../../workflow';
-import { NonRetriableWorkflowError } from '../../../../workflow/errors';
+} from '@/workflow';
+import { NonRetriableWorkflowError } from '@/workflow/errors';
 import {
   REGISTRATION_STEPS,
   REGISTRATION_VERSION,

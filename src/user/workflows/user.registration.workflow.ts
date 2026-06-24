@@ -1,4 +1,4 @@
-import { Workflow } from '../../workflow';
+import { Workflow } from '@/workflow';
 import {
   REGISTRATION_STEPS,
   REGISTRATION_VERSION,

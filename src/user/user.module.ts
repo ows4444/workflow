@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { WorkflowModule } from '../workflow';
+import { WorkflowModule } from '@/workflow';
 import { UserController } from './presentation/http/user.controller';
 import { RegistrationService } from './application/services/registration.service';
 

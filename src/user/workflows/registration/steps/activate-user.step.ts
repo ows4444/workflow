@@ -4,11 +4,11 @@ import {
   WorkflowContext,
   WorkflowStepHandler,
   WorkflowStepResult,
-} from '../../../../workflow';
+} from '@/workflow';
 import {
   NonRetriableWorkflowError,
   RetriableWorkflowError,
-} from '../../../../workflow/errors';
+} from '@/workflow/errors';
 import { UserRepository } from '../../../domain/repositories/user.repository';
 import {
   REGISTRATION_SIGNALS,

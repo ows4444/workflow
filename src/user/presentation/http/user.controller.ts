@@ -15,8 +15,8 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 export class UserController implements OnModuleInit {
   constructor(private readonly registrationService: RegistrationService) {}
   onModuleInit() {
-    setTimeout(async () => {
-      void (await this.registrationService.register('ows4444@gmail.com'));
+    setTimeout(() => {
+      void this.registrationService.register('ows4444@gmail.com');
     }, 100);
   }
 

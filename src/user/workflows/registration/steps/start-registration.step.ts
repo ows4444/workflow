@@ -4,7 +4,7 @@ import {
   WorkflowStepHandler,
   WorkflowStepResult,
   createWorkflowStepId,
-} from '../../../../workflow';
+} from '@/workflow';
 
 @Step({
   workflow: 'user-registration',

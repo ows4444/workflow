@@ -4,11 +4,11 @@ import {
   WorkflowContext,
   WorkflowStepHandler,
   WorkflowStepResult,
-} from '../../../../workflow';
+} from '@/workflow';
 import {
   NonRetriableWorkflowError,
   RetriableWorkflowError,
-} from '../../../../workflow/errors';
+} from '@/workflow/errors';
 import { UserCreatedEvent } from '../../../domain/events/user-created.event';
 import {
   REGISTRATION_STEPS,

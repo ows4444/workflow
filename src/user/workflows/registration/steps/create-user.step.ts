@@ -4,8 +4,8 @@ import {
   WorkflowContext,
   WorkflowStepHandler,
   WorkflowStepResult,
-} from '../../../../workflow';
-import { RetriableWorkflowError } from '../../../../workflow/errors';
+} from '@/workflow';
+import { RetriableWorkflowError } from '@/workflow/errors';
 import { UserRepository } from '../../../domain/repositories/user.repository';
 import {
   REGISTRATION_STEPS,
