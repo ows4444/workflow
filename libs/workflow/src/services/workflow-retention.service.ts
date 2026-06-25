@@ -38,7 +38,11 @@ export class WorkflowRetentionService {
     );
 
     for (const workflow of completed) {
-      await this.stateService.delete(workflow.workflowId);
+      try {
+        await this.stateService.delete(workflow.workflowId);
+      } catch {
+        // Individual cleanup failures must not abort the batch.
+      }
     }
   }
 }

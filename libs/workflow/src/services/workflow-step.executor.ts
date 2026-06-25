@@ -20,6 +20,7 @@ import {
 import { type WorkflowRetryScheduler } from '../contracts/workflow-retry-scheduler';
 import { WorkflowLeaseService } from './workflow-lease.service';
 import { WorkflowStepResultValidator } from './workflow-step-result.validator';
+import { WorkflowStepPersistenceService } from './workflow-step-persistence.service';
 
 interface RetryExecutionResult<T> {
   readonly result: T;
@@ -43,6 +44,7 @@ export class WorkflowStepExecutor {
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
     private readonly leaseService: WorkflowLeaseService,
+    private readonly persistence: WorkflowStepPersistenceService,
   ) {}
 
   async execute(
@@ -89,6 +91,7 @@ export class WorkflowStepExecutor {
             const next = this.transitions.incrementStepRetry(currentState);
             return this.stateService.save(currentState, next);
           },
+          abortSignal,
         ).then((execution) => {
           this.validator.validate(
             workflow,
@@ -100,7 +103,7 @@ export class WorkflowStepExecutor {
       } finally {
         stopKeepAlive();
       }
-    }, step.metadata.timeoutMs);
+    }, step.metadata.timeoutMs ?? workflow.metadata.defaultStepTimeoutMs);
   }
 
   private isRetriable(error: unknown): boolean {
@@ -112,6 +115,7 @@ export class WorkflowStepExecutor {
     state: WorkflowExecutionState,
     operation: () => Promise<T>,
     onRetry: (state: WorkflowExecutionState) => Promise<WorkflowExecutionState>,
+    signal: AbortSignal,
   ): Promise<RetryExecutionResult<T>> {
     const retry = workflow.metadata.retries;
 
@@ -145,13 +149,22 @@ export class WorkflowStepExecutor {
           throw error;
         }
 
+        await this.persistence.appendRetry(state.workflowId, {
+          step: state.currentStep!,
+          startedAt: state.stepStartedAt ?? new Date(),
+          completedAt: new Date(),
+          durationMs: 0,
+          status: 'failed',
+          error: error instanceof Error ? error.message : String(error),
+        });
+
         latestState = await onRetry(latestState);
 
         const delay = this.retryDelay.compute(retry, attempt);
 
         await this.retryScheduler.wait(
           this.retryJitter.apply(delay, attempt),
-          attempt,
+          signal,
         );
       }
     }

@@ -15,6 +15,7 @@ import { WorkflowLifecyclePublisher } from './workflow-lifecycle.publisher';
 import { type WorkflowTransactionRunner } from '../contracts/stores/workflow-transaction-runner';
 import { WORKFLOW_TRANSACTION_RUNNER } from '../constants/workflow.tokens';
 import { WorkflowLogger } from './workflow-logger.service';
+import { WorkflowCompensationService } from './workflow-compensation.service';
 
 @Injectable()
 export class WorkflowFailureService {
@@ -23,6 +24,7 @@ export class WorkflowFailureService {
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
     private readonly retryService: WorkflowRetryService,
+    private readonly compensation: WorkflowCompensationService,
     private readonly registry: WorkflowRegistry,
     private readonly publisher: WorkflowLifecyclePublisher,
     private readonly logger: WorkflowLogger,
@@ -119,6 +121,10 @@ export class WorkflowFailureService {
 
     if (retry && this.retryService.canRetry(latest, retry.maxAttempts)) {
       await this.retryService.retry(latest, retry);
+      return;
+    }
+    if (workflow.metadata.compensation?.enabled) {
+      await this.compensation.compensate(workflow, latest);
     }
   }
 }

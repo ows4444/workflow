@@ -6,6 +6,7 @@ import { WorkflowStateTransitions } from './workflow-state.transitions';
 import { WorkflowStateService } from './workflow-state.service';
 import { WorkflowRetryDelayService } from './workflow-retry-delay.service';
 import { WorkflowRetryMetadata } from '../metadata/workflow-retry-metadata';
+import { WorkflowLogger } from './workflow-logger.service';
 
 @Injectable()
 export class WorkflowRetryService {
@@ -13,6 +14,7 @@ export class WorkflowRetryService {
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
     private readonly retryDelay: WorkflowRetryDelayService,
+    private readonly logger: WorkflowLogger,
   ) {}
 
   canRetry(state: WorkflowExecutionState, maxAttempts: number): boolean {
@@ -39,6 +41,12 @@ export class WorkflowRetryService {
       new Date(Date.now() + delay),
     );
 
-    return this.stateService.save(state, next);
+    const persisted = await this.stateService.save(state, next);
+
+    if (persisted.retryAt) {
+      this.logger.retryScheduled(persisted, persisted.retryAt);
+    }
+
+    return persisted;
   }
 }

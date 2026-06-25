@@ -17,11 +17,13 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
 
     this.states.set(state.workflowId, state);
   }
-  async findRecoverable(readyAt = new Date()) {
-    return this.values().filter(
+  async findRecoverable(readyAt = new Date(), limit?: number) {
+    const results = this.values().filter(
       (x) =>
         x.requiresRecovery === true && (!x.retryAt || x.retryAt <= readyAt),
     );
+
+    return limit === undefined ? results : results.slice(0, limit);
   }
 
   async findRunning() {
@@ -32,27 +34,31 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
     return this.values().filter((x) => x.status === 'waiting');
   }
 
-  async findWaitingExpired(olderThanMs: number) {
+  async findWaitingExpired(olderThanMs: number, limit?: number) {
     const threshold = Date.now() - olderThanMs;
 
-    return this.values().filter(
+    const results = this.values().filter(
       (x) => x.status === 'waiting' && x.updatedAt.getTime() < threshold,
     );
+
+    return limit === undefined ? results : results.slice(0, limit);
   }
 
   async findFailed() {
     return this.values().filter((x) => x.status === 'failed');
   }
 
-  async findStuck(olderThanMs: number) {
+  async findStuck(olderThanMs: number, limit?: number) {
     const threshold = Date.now() - olderThanMs;
 
-    return this.values().filter(
+    const results = this.values().filter(
       (x) =>
         x.status === 'running' &&
         x.stepStartedAt &&
         x.stepStartedAt.getTime() < threshold,
     );
+
+    return limit === undefined ? results : results.slice(0, limit);
   }
 
   async save(

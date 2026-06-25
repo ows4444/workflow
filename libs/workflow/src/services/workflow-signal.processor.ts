@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { WORKFLOW_IDEMPOTENCY_STORE } from '../constants/workflow.tokens';
+import {
+  WORKFLOW_IDEMPOTENCY_STORE,
+  WORKFLOW_TRANSACTION_RUNNER,
+} from '../constants/workflow.tokens';
 
 import { WorkflowSignal } from '../contracts/workflow-signal';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
@@ -12,6 +15,8 @@ import { WorkflowStateTransitions } from './workflow-state.transitions';
 import { buildSignalIdempotencyKey } from './workflow-idempotency-key';
 
 import { WorkflowExecutionError } from '../errors/workflow.errors';
+import { type WorkflowTransactionRunner } from '../contracts/stores/workflow-transaction-runner';
+import { WorkflowRegistry } from './workflow.registry';
 
 @Injectable()
 export class WorkflowSignalProcessor {
@@ -22,9 +27,26 @@ export class WorkflowSignalProcessor {
     private readonly signals: WorkflowSignalService,
     private readonly states: WorkflowStateService,
     private readonly transitions: WorkflowStateTransitions,
+    private readonly registry: WorkflowRegistry,
+
+    @Inject(WORKFLOW_TRANSACTION_RUNNER)
+    private readonly transactionRunner: WorkflowTransactionRunner,
   ) {}
 
   async prepare(
+    workflowId: string,
+    signal: WorkflowSignal,
+  ): Promise<WorkflowExecutionState> {
+    if (this.transactionRunner.isActive?.()) {
+      return this.prepareInternal(workflowId, signal);
+    }
+
+    return this.transactionRunner.execute(() =>
+      this.prepareInternal(workflowId, signal),
+    );
+  }
+
+  private async prepareInternal(
     workflowId: string,
     signal: WorkflowSignal,
   ): Promise<WorkflowExecutionState> {
@@ -48,6 +70,19 @@ export class WorkflowSignalProcessor {
 
     if (!state) {
       throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
+    }
+
+    const workflow = this.registry.get(
+      state.workflowName,
+      state.workflowVersion,
+    );
+
+    const supported = workflow.metadata.signals?.supportedSignals;
+
+    if (supported && supported.length > 0 && !supported.includes(signal.name)) {
+      throw new WorkflowExecutionError(
+        `Signal '${signal.name}' is not supported by workflow '${workflow.metadata.name}'`,
+      );
     }
 
     if (state.status !== 'waiting') {

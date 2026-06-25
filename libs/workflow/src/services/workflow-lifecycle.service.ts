@@ -86,6 +86,10 @@ export class WorkflowLifecycleService {
         )
       : state;
 
+    if (state.requiresRecovery) {
+      this.logger.recovered(resumed);
+    }
+
     return {
       workflow,
       state: resumed,

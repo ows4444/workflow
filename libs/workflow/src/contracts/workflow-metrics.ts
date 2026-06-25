@@ -16,4 +16,6 @@ export interface WorkflowMetrics {
   stepStarted(workflowName: string, step: string): void;
 
   stepCompleted(workflowName: string, step: string, durationMs: number): void;
+
+  hookFailed(workflow: string, hook: string): void;
 }

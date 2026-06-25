@@ -47,6 +47,14 @@ export class WorkflowLogger {
     this.metrics.workflowFailed(state.workflowName);
   }
 
+  recovered(state: WorkflowExecutionState): void {
+    this.logger.log(
+      `Recovered workflow=${state.workflowName} workflowId=${state.workflowId}`,
+    );
+
+    this.metrics.workflowRecovered(state.workflowName);
+  }
+
   stepStarted(state: WorkflowExecutionState): void {
     this.logger.debug(
       `Step started workflowId=${state.workflowId} step=${state.currentStep}`,
@@ -74,5 +82,13 @@ export class WorkflowLogger {
       `Signal received workflowId=${workflowId} signal=${signalName} signalId=${signalId}`,
     );
     this.metrics.signalReceived(workflowId);
+  }
+
+  retryScheduled(state: WorkflowExecutionState, retryAt: Date): void {
+    this.logger.debug(
+      `Retry scheduled workflow=${state.workflowName} workflowId=${state.workflowId} retryAt=${retryAt.toISOString()}`,
+    );
+
+    this.metrics.retryScheduled(state.workflowName);
   }
 }

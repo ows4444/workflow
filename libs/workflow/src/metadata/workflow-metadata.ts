@@ -4,13 +4,11 @@ import { WorkflowRetryMetadata } from './workflow-retry-metadata';
 import { WorkflowHookMetadata } from './workflow-hook-metadata';
 import { WorkflowAutoResumeMetadata } from './workflow-auto-resume-metadata';
 import { WorkflowRetentionMetadata } from './workflow-retention-metadata';
-// import { WorkflowPersistenceMetadata } from './workflow-persistence-metadata';
-// import { WorkflowRetentionMetadata } from './workflow-retention-metadata';
-// import { WorkflowSignalMetadata } from './workflow-signal-metadata';
-// import { WorkflowCompensationMetadata } from './workflow-compensation-metadata';
-// import { WorkflowChildMetadata } from './workflow-child-metadata';
-// import { WorkflowHookMetadata } from './workflow-hook-metadata';
-// import { WorkflowObservabilityMetadata } from './workflow-observability-metadata';
+import { WorkflowCompensationMetadata } from './workflow-compensation-metadata';
+import { WorkflowChildMetadata } from './workflow-child-metadata';
+import { WorkflowObservabilityMetadata } from './workflow-observability-metadata';
+import { WorkflowPersistenceMetadata } from './workflow-persistence-metadata';
+import { WorkflowSignalMetadata } from './workflow-signal-metadata';
 
 export interface WorkflowMetadata {
   readonly name: string;
@@ -18,6 +16,8 @@ export interface WorkflowMetadata {
   readonly version: number;
 
   readonly description?: string;
+
+  readonly defaultStepTimeoutMs?: number;
 
   readonly imports?: Type<unknown>[];
 
@@ -35,13 +35,13 @@ export interface WorkflowMetadata {
 
   readonly retention?: WorkflowRetentionMetadata;
 
-  // readonly persistence?: WorkflowPersistenceMetadata;
+  readonly compensation?: WorkflowCompensationMetadata;
 
-  // readonly signals?: WorkflowSignalMetadata;
+  readonly persistence?: WorkflowPersistenceMetadata;
 
-  // readonly compensation?: WorkflowCompensationMetadata;
+  readonly signals?: WorkflowSignalMetadata;
 
-  // readonly childWorkflows?: WorkflowChildMetadata[];
+  readonly childWorkflows?: WorkflowChildMetadata[];
 
-  // readonly observability?: WorkflowObservabilityMetadata;
+  readonly observability?: WorkflowObservabilityMetadata;
 }

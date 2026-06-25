@@ -1,3 +1,3 @@
 export interface WorkflowRetryScheduler {
-  wait(delayMs: number, attempt: number): Promise<void>;
+  wait(delayMs: number, signal?: AbortSignal): Promise<void>;
 }

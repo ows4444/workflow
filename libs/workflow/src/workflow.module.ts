@@ -53,13 +53,17 @@ import { NoopWorkflowMetricsService } from './services/noop-workflow-metrics.ser
 import { WorkflowQueryService } from './services/workflow-query.service';
 import { WorkflowClient } from './services/workflow-client.service';
 import { WorkflowCompensationService } from './services/workflow-compensation.service';
+import { WorkflowStateService } from './services/workflow-state.service';
+import { WorkflowStateTransitions } from './services/workflow-state.transitions';
 
 @Module({
   imports: [DiscoveryModule],
   providers: [
+    WorkflowStateTransitions,
     WorkflowQueryService,
     WorkflowStateValidator,
     WorkflowStateFactory,
+    WorkflowStateService,
 
     WorkflowCompletionService,
     WorkflowHookExecutor,
@@ -70,6 +74,7 @@ import { WorkflowCompensationService } from './services/workflow-compensation.se
     WorkflowTransitionValidator,
     WorkflowStepResultValidator,
     DefaultWorkflowRetryJitterService,
+    DefaultWorkflowRetryScheduler,
 
     {
       provide: WORKFLOW_RETRY_JITTER,

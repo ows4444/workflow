@@ -40,4 +40,11 @@ export class WorkflowStepPersistenceService {
       return this.stateService.save(previous, next);
     });
   }
+
+  async appendRetry(
+    workflowId: string,
+    execution: WorkflowStepExecution,
+  ): Promise<void> {
+    await this.history.append(workflowId, execution);
+  }
 }

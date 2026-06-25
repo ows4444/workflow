@@ -19,6 +19,27 @@ export class WorkflowCompensationService {
     workflow: RegisteredWorkflow,
     state: WorkflowExecutionState,
   ): Promise<void> {
+    const strategy =
+      workflow.metadata.compensation?.strategy ?? 'reverse-order';
+
+    switch (strategy) {
+      case 'reverse-order':
+        return this.compensateReverseOrder(workflow, state);
+
+      case 'custom':
+        throw new Error(
+          `Compensation strategy '${strategy}' is not implemented.`,
+        );
+
+      default:
+        strategy satisfies never;
+    }
+  }
+
+  private async compensateReverseOrder(
+    workflow: RegisteredWorkflow,
+    state: WorkflowExecutionState,
+  ): Promise<void> {
     const history = await this.history.findByWorkflowId(state.workflowId);
 
     const completed = [...history]

@@ -18,6 +18,7 @@ import { type WorkflowTransactionRunner } from '../contracts/stores/workflow-tra
 import { WorkflowHistoryService } from './workflow-history.service';
 import { WorkflowSignalService } from './workflow-signal.service';
 import { type WorkflowIdempotencyStore } from '../contracts/stores/workflow-idempotency-store';
+import { WorkflowLeaseService } from './workflow-lease.service';
 
 @Injectable()
 export class WorkflowStateService {
@@ -32,6 +33,7 @@ export class WorkflowStateService {
 
     private readonly history: WorkflowHistoryService,
     private readonly signals: WorkflowSignalService,
+    private readonly leaseService: WorkflowLeaseService,
 
     @Inject(WORKFLOW_IDEMPOTENCY_STORE)
     private readonly idempotency: WorkflowIdempotencyStore,
@@ -69,6 +71,19 @@ export class WorkflowStateService {
   async cancel(
     workflowId: string,
     expired = false,
+  ): Promise<WorkflowExecutionState> {
+    if (this.transactionRunner.isActive?.()) {
+      return this.cancelInternal(workflowId, expired);
+    }
+
+    return this.transactionRunner.execute(() =>
+      this.cancelInternal(workflowId, expired),
+    );
+  }
+
+  private async cancelInternal(
+    workflowId: string,
+    expired: boolean,
   ): Promise<WorkflowExecutionState> {
     const state = await this.load(workflowId);
 
@@ -135,10 +150,23 @@ export class WorkflowStateService {
   }
 
   async delete(workflowId: string): Promise<void> {
+    try {
+      await this.leaseService.release(workflowId);
+    } catch {
+      // Ignore lease release failures during cleanup.
+    }
+
+    if (this.transactionRunner.isActive?.()) {
+      return this.deleteInternal(workflowId);
+    }
+
+    await this.transactionRunner.execute(() => this.deleteInternal(workflowId));
+  }
+
+  private async deleteInternal(workflowId: string): Promise<void> {
     await this.history.delete(workflowId);
     await this.signals.deleteByWorkflowId(workflowId);
     await this.idempotency.deleteByWorkflowId(workflowId);
-
     await this.store.delete(workflowId);
   }
 

@@ -64,16 +64,33 @@ export class WorkflowAutoRecoveryService {
       }
     }
 
-    const expired = await this.recovery.findExpiredWaitingExecutions(
-      threshold,
+    const waiting = await this.recovery.findExpiredWaitingExecutions(
+      0,
       batchSize,
     );
 
-    for (const workflow of expired) {
+    const now = Date.now();
+
+    for (const execution of waiting) {
+      const definition = workflowMap.get(
+        `${execution.workflowName}:${execution.workflowVersion}`,
+      );
+
+      const timeout =
+        definition?.metadata.signals?.defaultTimeoutMs ??
+        DEFAULT_STUCK_THRESHOLD_MS;
+
+      if (
+        execution.waitingSince &&
+        now - execution.waitingSince.getTime() < timeout
+      ) {
+        continue;
+      }
+
       try {
-        await this.executor.cancel(workflow.workflowId, true);
+        await this.executor.cancel(execution.workflowId, true);
       } catch {
-        // ignore
+        // individual workflow failure must not abort the batch
       }
     }
   }

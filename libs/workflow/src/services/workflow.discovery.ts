@@ -1,7 +1,11 @@
 import { Injectable, OnModuleInit, Type } from '@nestjs/common';
 import { DiscoveryService, Reflector } from '@nestjs/core';
 
-import { WORKFLOW_METADATA } from '../constants/workflow.constants';
+import {
+  WORKFLOW_HOOK_METADATA,
+  WORKFLOW_METADATA,
+  WORKFLOW_SIGNAL_METADATA,
+} from '../constants/workflow.constants';
 import { WORKFLOW_STEP_METADATA } from '../constants/workflow.constants';
 
 import { WorkflowMetadata } from '../metadata/workflow-metadata';
@@ -13,6 +17,8 @@ import { WorkflowDefinitionValidator } from './workflow-definition.validator';
 import { WorkflowConfigurationError } from '../errors/workflow.errors';
 import { WorkflowStepHandler } from '../contracts/workflow-step-handler';
 import { WorkflowStepId } from '../contracts/workflow-step-id';
+import { WorkflowHookMetadata } from '../metadata/workflow-hook-metadata';
+import { WorkflowSignalMetadata } from '../metadata/workflow-signal-metadata';
 
 interface MutableRegisteredWorkflow {
   readonly metadata: WorkflowMetadata;
@@ -45,14 +51,30 @@ export class WorkflowDiscovery implements OnModuleInit {
         continue;
       }
 
-      const metadata = this.reflector.get<WorkflowMetadata>(
+      const workflowMetadata = this.reflector.get<WorkflowMetadata>(
         WORKFLOW_METADATA,
         type,
       );
 
-      if (!metadata) {
+      if (!workflowMetadata) {
         continue;
       }
+
+      const hookMetadata = this.reflector.get<WorkflowHookMetadata>(
+        WORKFLOW_HOOK_METADATA,
+        type,
+      );
+
+      const signalMetadata = this.reflector.get<WorkflowSignalMetadata>(
+        WORKFLOW_SIGNAL_METADATA,
+        type,
+      );
+
+      const metadata: WorkflowMetadata = Object.freeze({
+        ...workflowMetadata,
+        hooks: hookMetadata ?? workflowMetadata.hooks,
+        signals: signalMetadata ?? workflowMetadata.signals,
+      });
 
       const key = workflowKey(metadata.name, metadata.version);
 
@@ -114,7 +136,7 @@ export class WorkflowDiscovery implements OnModuleInit {
         metadata,
         type: type as Type<WorkflowStepHandler>,
 
-        compensation: metadata.compensation?.handler,
+        // compensation: metadata.compensation?.handler,
       });
     }
 

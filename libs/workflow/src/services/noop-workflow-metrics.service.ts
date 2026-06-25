@@ -21,4 +21,6 @@ export class NoopWorkflowMetricsService implements WorkflowMetrics {
   stepStarted(): void {}
 
   stepCompleted(): void {}
+
+  hookFailed(): void {}
 }

@@ -6,6 +6,8 @@ export * from './services/workflow-recovery.service';
 
 export * from './decorators/workflow-step.decorator';
 export * from './decorators/workflow.decorator';
+export * from './decorators/workflow-hook.decorator';
+export * from './decorators/workflow-signal.decorator';
 
 export * from './contracts/workflow-context';
 export * from './contracts/workflow-runtime';

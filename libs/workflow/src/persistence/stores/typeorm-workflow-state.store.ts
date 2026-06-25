@@ -199,26 +199,38 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     const threshold = new Date(Date.now() - olderThanMs);
 
     const qb = this.repository
-      .createQueryBuilder()
-      .delete()
-      .where('status = :status', { status: 'completed' })
-      .andWhere('completedAt < :threshold', { threshold });
+      .createQueryBuilder('w')
+      .select('w.id', 'id')
+      .where('w.status = :status', { status: 'completed' })
+      .andWhere('w.completedAt < :threshold', { threshold });
 
     if (workflowName !== undefined) {
-      qb.andWhere('workflowName = :workflowName', { workflowName });
+      qb.andWhere('w.workflowName = :workflowName', { workflowName });
     }
+
+    if (workflowVersion !== undefined) {
+      qb.andWhere('w.workflowVersion = :workflowVersion', {
+        workflowVersion,
+      });
+    }
+
+    qb.orderBy('w.completedAt', 'ASC');
 
     if (limit !== undefined) {
       qb.take(limit);
     }
 
-    if (workflowVersion !== undefined) {
-      qb.andWhere('workflowVersion = :workflowVersion', {
-        workflowVersion,
-      });
+    const ids = await qb.getRawMany<{ id: string }>();
+
+    if (ids.length === 0) {
+      return 0;
     }
 
-    const result = await qb.execute();
+    const result = await this.repository
+      .createQueryBuilder()
+      .delete()
+      .whereInIds(ids.map((x) => x.id))
+      .execute();
 
     return result.affected ?? 0;
   }

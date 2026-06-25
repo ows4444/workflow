@@ -1,12 +1,18 @@
-import { Injectable, Logger, Type } from '@nestjs/common';
+import { Inject, Injectable, Logger, Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
 import { WorkflowHook } from '../contracts/workflow-hook';
+import { type WorkflowMetrics } from '../contracts/workflow-metrics';
+import { WORKFLOW_METRICS } from '../constants/workflow.tokens';
 
 @Injectable()
 export class WorkflowHookExecutor {
   private readonly logger = new Logger(WorkflowHookExecutor.name);
-  constructor(private readonly moduleRef: ModuleRef) {}
+  constructor(
+    private readonly moduleRef: ModuleRef,
+    @Inject(WORKFLOW_METRICS)
+    private readonly metrics: WorkflowMetrics,
+  ) {}
 
   async execute(
     state: WorkflowExecutionState,
@@ -28,6 +34,7 @@ export class WorkflowHookExecutor {
     try {
       await instance.execute(state);
     } catch (error) {
+      this.metrics.hookFailed(state.workflowName, hook.name);
       this.logger.error(
         `Workflow hook '${hook.name}' failed for workflow '${state.workflowName}' (${state.workflowId})`,
         error instanceof Error ? error.stack : String(error),
