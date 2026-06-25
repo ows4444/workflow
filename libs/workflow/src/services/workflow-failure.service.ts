@@ -9,6 +9,9 @@ import { WorkflowExecutionError } from '../errors/workflow.errors';
 import { WorkflowHistoryService } from './workflow-history.service';
 import { WorkflowStateTransitions } from './workflow-state.transitions';
 import { WorkflowStateService } from './workflow-state.service';
+import { WorkflowRegistry } from './workflow.registry';
+import { WorkflowRetryService } from './workflow-retry.service';
+import { WorkflowLifecyclePublisher } from './workflow-lifecycle.publisher';
 
 @Injectable()
 export class WorkflowFailureService {
@@ -16,10 +19,24 @@ export class WorkflowFailureService {
     private readonly history: WorkflowHistoryService,
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
+    private readonly retryService: WorkflowRetryService,
+    private readonly registry: WorkflowRegistry,
+    private readonly publisher: WorkflowLifecyclePublisher,
   ) {}
 
   serialize(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+  }
+
+  async handleFailure(
+    state: WorkflowExecutionState,
+    error: unknown,
+  ): Promise<void> {
+    if (!state.executingStep && !state.currentStep) {
+      return;
+    }
+
+    await this.failExecution(state, error);
   }
 
   toFailure(error: unknown): WorkflowFailure {
@@ -73,6 +90,22 @@ export class WorkflowFailureService {
       this.toFailure(error),
     );
 
-    await this.stateService.save(state, failedState);
+    const persisted = await this.stateService.save(state, failedState);
+
+    const latest =
+      (await this.stateService.load(persisted.workflowId)) ?? persisted;
+
+    const workflow = this.registry.get(
+      latest.workflowName,
+      latest.workflowVersion,
+    );
+
+    await this.publisher.failed(workflow, latest);
+
+    const maxAttempts = workflow.metadata.retries?.maxAttempts ?? 0;
+
+    if (this.retryService.canRetry(latest, maxAttempts)) {
+      await this.retryService.retry(latest);
+    }
   }
 }

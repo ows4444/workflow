@@ -6,77 +6,99 @@ import { WorkflowStepId } from '../contracts/workflow-step-id';
 import { WorkflowStepExecution } from '../contracts/workflow-step-execution';
 import { WorkflowFailure } from '../contracts/workflow-failure';
 
-import { WorkflowExecutionMapper } from '../domain/workflow-execution.mapper';
-
 @Injectable()
 export class WorkflowStateTransitions {
-  bumpVersion(state: WorkflowExecutionState): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).bumpVersion(),
-    );
+  private bumpVersion(state: WorkflowExecutionState): WorkflowExecutionState {
+    return {
+      ...state,
+      stateVersion: state.stateVersion + 1,
+      updatedAt: new Date(),
+    };
   }
 
   startStep(
     state: WorkflowExecutionState,
     step: WorkflowStepId,
   ): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).startStep(step),
-    );
+    return this.bumpVersion({
+      ...state,
+      currentStep: step,
+      executingStep: step,
+      stepStartedAt: new Date(),
+      requiresRecovery: false,
+    });
   }
-
   incrementRetry(state: WorkflowExecutionState): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).incrementRetry(),
-    );
+    return this.bumpVersion({
+      ...state,
+      retryCount: (state.retryCount ?? 0) + 1,
+    });
   }
-
   completeWorkflow(state: WorkflowExecutionState): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).complete(),
-    );
+    return this.bumpVersion({
+      ...state,
+      status: 'completed',
+      currentStep: undefined,
+      executingStep: undefined,
+      waitingForSignal: undefined,
+      resumeStep: undefined,
+      completedAt: new Date(),
+      stepStartedAt: undefined,
+      requiresRecovery: false,
+    });
   }
-
   failStep(
     state: WorkflowExecutionState,
     execution: WorkflowStepExecution,
     failure: WorkflowFailure,
   ): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).fail(failure, execution.step),
-    );
+    return this.bumpVersion({
+      ...state,
+      executingStep: undefined,
+      stepStartedAt: undefined,
+      failedStep: execution.step,
+      lastFailure: failure,
+    });
   }
-
   failWorkflow(
     state: WorkflowExecutionState,
     failure: WorkflowFailure,
   ): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).fail(failure, state.currentStep),
-    );
+    return this.bumpVersion({
+      ...state,
+      status: 'failed',
+      executingStep: undefined,
+      waitingForSignal: undefined,
+      resumeStep: undefined,
+      stepStartedAt: undefined,
+      failedStep: state.executingStep ?? state.currentStep,
+      failedAt: new Date(),
+      lastFailure: failure,
+      failureCount: (state.failureCount ?? 0) + 1,
+      requiresRecovery: false,
+    });
   }
-
   resumeFromSignal(state: WorkflowExecutionState): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).resume(),
-    );
+    return this.bumpVersion({
+      ...state,
+      status: 'running',
+      currentStep: state.resumeStep,
+      resumeStep: undefined,
+      waitingForSignal: undefined,
+    });
   }
-
   markRecoverable(
     state: WorkflowExecutionState,
     reason: WorkflowExecutionState['recoveryReason'],
   ): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).markRecoverable(reason),
-    );
+    return this.bumpVersion({
+      ...state,
+      requiresRecovery: true,
+      recoveryReason: reason,
+      recoveryAttempts: (state.recoveryAttempts ?? 0) + 1,
+      lastRecoveryAt: new Date(),
+    });
   }
-
-  cancelWorkflow(state: WorkflowExecutionState): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).cancel(),
-    );
-  }
-
   completeStep(
     state: WorkflowExecutionState,
     _execution: WorkflowStepExecution,
@@ -84,12 +106,36 @@ export class WorkflowStateTransitions {
     waitForSignal?: WorkflowSignal,
     data?: object,
   ): WorkflowExecutionState {
-    return WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).completeStep(
-        nextStep,
-        waitForSignal,
-        data,
-      ),
-    );
+    const mergedData =
+      data === undefined
+        ? state.data
+        : {
+            ...state.data,
+            ...data,
+          };
+
+    if (waitForSignal) {
+      return this.bumpVersion({
+        ...state,
+        status: 'waiting',
+        data: mergedData,
+        executingStep: undefined,
+        stepStartedAt: undefined,
+        waitingForSignal: waitForSignal,
+        resumeStep: nextStep,
+      });
+    }
+
+    return this.bumpVersion({
+      ...state,
+      data: mergedData,
+      executingStep: undefined,
+      stepStartedAt: undefined,
+      waitingForSignal: undefined,
+      resumeStep: undefined,
+      currentStep: nextStep,
+      historyCount: state.historyCount + 1,
+      iteration: state.iteration + 1,
+    });
   }
 }

@@ -17,4 +17,9 @@ export interface RegisteredWorkflow {
   readonly workflowType: Type<unknown>;
 
   readonly steps: ReadonlyMap<WorkflowStepId, RegisteredWorkflowStep>;
+
+  readonly transitions: ReadonlyMap<
+    WorkflowStepId,
+    ReadonlySet<WorkflowStepId>
+  >;
 }

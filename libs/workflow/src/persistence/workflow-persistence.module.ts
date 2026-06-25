@@ -14,9 +14,12 @@ import {
   WORKFLOW_IDEMPOTENCY_STORE,
   WORKFLOW_SIGNAL_STORE,
   WORKFLOW_STATE_STORE,
+  WORKFLOW_TRANSACTION_RUNNER,
 } from '../constants/workflow.tokens';
 import { WorkflowIdempotencyEntity } from './entities/workflow-idempotency.entity';
 import { TypeOrmWorkflowIdempotencyStore } from './stores/typeorm-workflow-idempotency.store';
+import { TypeOrmWorkflowTransactionRunner } from './stores/typeorm-workflow-transaction-runner';
+import { TypeOrmWorkflowTransactionContext } from './stores/typeorm-workflow-transaction-context';
 
 @Module({
   imports: [
@@ -29,6 +32,9 @@ import { TypeOrmWorkflowIdempotencyStore } from './stores/typeorm-workflow-idemp
   ],
 
   providers: [
+    TypeOrmWorkflowTransactionContext,
+    TypeOrmWorkflowTransactionRunner,
+
     TypeOrmWorkflowStateStore,
     TypeOrmWorkflowSignalStore,
     TypeOrmWorkflowHistoryStore,
@@ -53,6 +59,10 @@ import { TypeOrmWorkflowIdempotencyStore } from './stores/typeorm-workflow-idemp
       provide: WORKFLOW_HISTORY_STORE,
       useExisting: TypeOrmWorkflowHistoryStore,
     },
+    {
+      provide: WORKFLOW_TRANSACTION_RUNNER,
+      useExisting: TypeOrmWorkflowTransactionRunner,
+    },
   ],
 
   exports: [
@@ -60,6 +70,7 @@ import { TypeOrmWorkflowIdempotencyStore } from './stores/typeorm-workflow-idemp
     WORKFLOW_SIGNAL_STORE,
     WORKFLOW_HISTORY_STORE,
     WORKFLOW_IDEMPOTENCY_STORE,
+    WORKFLOW_TRANSACTION_RUNNER,
   ],
 })
 export class WorkflowPersistenceModule {}

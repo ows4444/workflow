@@ -71,6 +71,48 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
     return this.states.get(workflowId) ?? null;
   }
 
+  async acquireLease(
+    workflowId: string,
+    owner: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    const state = this.states.get(workflowId);
+
+    if (!state) {
+      return false;
+    }
+
+    if (
+      state.leaseExpiresAt &&
+      state.leaseExpiresAt > new Date() &&
+      state.leaseOwner !== owner
+    ) {
+      return false;
+    }
+
+    this.states.set(workflowId, {
+      ...state,
+      leaseOwner: owner,
+      leaseExpiresAt: expiresAt,
+    });
+
+    return true;
+  }
+
+  async releaseLease(workflowId: string, owner: string): Promise<void> {
+    const state = this.states.get(workflowId);
+
+    if (!state || state.leaseOwner !== owner) {
+      return;
+    }
+
+    this.states.set(workflowId, {
+      ...state,
+      leaseOwner: undefined,
+      leaseExpiresAt: undefined,
+    });
+  }
+
   async delete(workflowId: string): Promise<void> {
     this.states.delete(workflowId);
   }

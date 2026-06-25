@@ -1,18 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { WorkflowExecutionHistoryStore } from '../../contracts/stores/workflow-execution-history.store';
 import { WorkflowStepExecution } from '../../contracts/workflow-step-execution';
 
 import { WorkflowStepHistoryEntity } from '../entities/workflow-step-history.entity';
+import { TypeOrmWorkflowTransactionContext } from './typeorm-workflow-transaction-context';
 
 @Injectable()
 export class TypeOrmWorkflowHistoryStore implements WorkflowExecutionHistoryStore {
   constructor(
     @InjectRepository(WorkflowStepHistoryEntity)
-    private readonly repository: Repository<WorkflowStepHistoryEntity>,
+    private readonly defaultRepository: Repository<WorkflowStepHistoryEntity>,
+
+    private readonly context: TypeOrmWorkflowTransactionContext,
+
+    private readonly dataSource: DataSource,
   ) {}
+
+  private get repository(): Repository<WorkflowStepHistoryEntity> {
+    return (
+      this.context.get()?.getRepository(WorkflowStepHistoryEntity) ??
+      this.dataSource.getRepository(WorkflowStepHistoryEntity)
+    );
+  }
 
   async append(
     workflowId: string,

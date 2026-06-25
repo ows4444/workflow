@@ -5,10 +5,10 @@ import { WORKFLOW_STATE_STORE } from '../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
 import { type WorkflowStateStore } from '../contracts/stores/workflow-state-store';
 
-import { WorkflowExecutionMapper } from '../domain/workflow-execution.mapper';
-
 import { WorkflowStateValidator } from './workflow-state.validator';
 import { WorkflowExecutionError } from '../errors/workflow.errors';
+import { WorkflowRegistry } from './workflow.registry';
+import { WorkflowLifecyclePublisher } from './workflow-lifecycle.publisher';
 
 @Injectable()
 export class WorkflowStateService {
@@ -17,6 +17,8 @@ export class WorkflowStateService {
     private readonly store: WorkflowStateStore,
 
     private readonly validator: WorkflowStateValidator,
+    private readonly registry: WorkflowRegistry,
+    private readonly publisher: WorkflowLifecyclePublisher,
   ) {}
 
   async insert(state: WorkflowExecutionState): Promise<void> {
@@ -36,20 +38,25 @@ export class WorkflowStateService {
       throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
     }
 
-    const cancelled = WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).cancel(),
+    const cancelled = { ...state };
+
+    const persisted = await this.save(state, cancelled);
+
+    const workflow = this.registry.get(
+      persisted.workflowName,
+      persisted.workflowVersion,
     );
 
-    return this.save(state, cancelled);
+    await this.publisher.cancelled(workflow, persisted);
+
+    return persisted;
   }
 
   async save(
     previous: WorkflowExecutionState,
     next: WorkflowExecutionState,
   ): Promise<WorkflowExecutionState> {
-    const versioned = WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(next).bumpVersion(),
-    );
+    const versioned = { ...next };
 
     this.validator.validate(versioned);
 

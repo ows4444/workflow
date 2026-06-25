@@ -1,15 +1,16 @@
 import { Type } from '@nestjs/common';
+import { WorkflowHook } from '../contracts/workflow-hook';
 
 export interface WorkflowHookMetadata {
-  readonly onStart?: Type<unknown>;
+  readonly onStart?: Type<WorkflowHook>;
 
-  readonly onComplete?: Type<unknown>;
+  readonly onComplete?: Type<WorkflowHook>;
 
-  readonly onFailure?: Type<unknown>;
+  readonly onFailure?: Type<WorkflowHook>;
 
-  readonly onCancel?: Type<unknown>;
+  readonly onCancel?: Type<WorkflowHook>;
 
-  readonly onExpire?: Type<unknown>;
+  readonly onExpire?: Type<WorkflowHook>;
 
-  readonly onSignal?: Type<unknown>;
+  readonly onSignal?: Type<WorkflowHook>;
 }

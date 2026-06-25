@@ -18,6 +18,8 @@ interface MutableRegisteredWorkflow {
   readonly metadata: WorkflowMetadata;
   readonly workflowType: Type<unknown>;
   readonly steps: Map<WorkflowStepId, RegisteredWorkflowStep>;
+
+  readonly transitions: Map<WorkflowStepId, ReadonlySet<WorkflowStepId>>;
 }
 
 @Injectable()
@@ -64,6 +66,7 @@ export class WorkflowDiscovery implements OnModuleInit {
         metadata,
         workflowType: type as Type<unknown>,
         steps: new Map(),
+        transitions: new Map(),
       });
     }
 
@@ -115,7 +118,21 @@ export class WorkflowDiscovery implements OnModuleInit {
 
     for (const workflow of workflows.values()) {
       this.validator.validate(workflow);
-      this.registry.register(workflow);
+      const transitions = new Map<
+        WorkflowStepId,
+        ReadonlySet<WorkflowStepId>
+      >();
+
+      for (const [step, targets] of Object.entries(
+        workflow.metadata.definition.transitions,
+      ) as [WorkflowStepId, readonly WorkflowStepId[]][]) {
+        transitions.set(step, new Set(targets));
+      }
+
+      this.registry.register({
+        ...workflow,
+        transitions,
+      });
     }
   }
 }

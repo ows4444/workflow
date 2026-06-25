@@ -1,8 +1,9 @@
 import { Provider, Type } from '@nestjs/common';
 import { WorkflowDefinitionMetadata } from './workflow-definition-metadata';
 import { WorkflowRetryMetadata } from './workflow-retry-metadata';
+import { WorkflowHookMetadata } from './workflow-hook-metadata';
+import { WorkflowAutoResumeMetadata } from './workflow-auto-resume-metadata';
 // import { WorkflowPersistenceMetadata } from './workflow-persistence-metadata';
-// import { WorkflowAutoResumeMetadata } from './workflow-auto-resume-metadata';
 // import { WorkflowRetentionMetadata } from './workflow-retention-metadata';
 // import { WorkflowSignalMetadata } from './workflow-signal-metadata';
 // import { WorkflowCompensationMetadata } from './workflow-compensation-metadata';
@@ -27,9 +28,11 @@ export interface WorkflowMetadata {
 
   readonly retries?: WorkflowRetryMetadata;
 
-  // readonly persistence?: WorkflowPersistenceMetadata;
+  readonly hooks?: WorkflowHookMetadata;
 
-  // readonly autoResume?: WorkflowAutoResumeMetadata;
+  readonly autoResume?: WorkflowAutoResumeMetadata;
+
+  // readonly persistence?: WorkflowPersistenceMetadata;
 
   // readonly retention?: WorkflowRetentionMetadata;
 
@@ -38,8 +41,6 @@ export interface WorkflowMetadata {
   // readonly compensation?: WorkflowCompensationMetadata;
 
   // readonly childWorkflows?: WorkflowChildMetadata[];
-
-  // readonly hooks?: WorkflowHookMetadata;
 
   // readonly observability?: WorkflowObservabilityMetadata;
 }

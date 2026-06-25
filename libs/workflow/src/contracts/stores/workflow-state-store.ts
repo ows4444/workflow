@@ -10,6 +10,14 @@ export interface WorkflowStateStore {
 
   load(workflowId: string): Promise<WorkflowExecutionState | null>;
 
+  acquireLease?(
+    workflowId: string,
+    owner: string,
+    expiresAt: Date,
+  ): Promise<boolean>;
+
+  releaseLease?(workflowId: string, owner: string): Promise<void>;
+
   delete(workflowId: string): Promise<void>;
 
   findRunning?(): Promise<WorkflowExecutionState[]>;

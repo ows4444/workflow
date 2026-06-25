@@ -1,16 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { WorkflowIdempotencyStore } from '../../contracts/stores/workflow-idempotency-store';
 import { WorkflowIdempotencyEntity } from '../entities/workflow-idempotency.entity';
+import { TypeOrmWorkflowTransactionContext } from './typeorm-workflow-transaction-context';
+import { isDuplicateKeyError } from '../utils/is-duplicate-query-error';
 
 @Injectable()
 export class TypeOrmWorkflowIdempotencyStore implements WorkflowIdempotencyStore {
   constructor(
     @InjectRepository(WorkflowIdempotencyEntity)
-    private readonly repository: Repository<WorkflowIdempotencyEntity>,
+    private readonly defaultRepository: Repository<WorkflowIdempotencyEntity>,
+
+    private readonly context: TypeOrmWorkflowTransactionContext,
+
+    private readonly dataSource: DataSource,
   ) {}
+
+  private get repository(): Repository<WorkflowIdempotencyEntity> {
+    return (
+      this.context.get()?.getRepository(WorkflowIdempotencyEntity) ??
+      this.dataSource.getRepository(WorkflowIdempotencyEntity)
+    );
+  }
 
   async acquire(key: string, workflowId: string): Promise<boolean> {
     try {
@@ -23,11 +36,7 @@ export class TypeOrmWorkflowIdempotencyStore implements WorkflowIdempotencyStore
 
       return true;
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error.driverError?.code === 'ER_DUP_ENTRY' ||
-          error.driverError?.code === '23505')
-      ) {
+      if (isDuplicateKeyError(error)) {
         return false;
       }
 

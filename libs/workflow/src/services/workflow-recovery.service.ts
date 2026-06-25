@@ -7,8 +7,6 @@ import { type WorkflowStateStore } from '../contracts/stores/workflow-state-stor
 
 import { WorkflowExecutionError } from '../errors/workflow.errors';
 
-import { WorkflowExecutionMapper } from '../domain/workflow-execution.mapper';
-
 @Injectable()
 export class WorkflowRecoveryService {
   constructor(
@@ -16,9 +14,8 @@ export class WorkflowRecoveryService {
     private readonly store: WorkflowStateStore,
   ) {}
 
-  async findStuckExecutions() {
-    const workflows =
-      (await this.store.findStuck?.(DEFAULT_STUCK_THRESHOLD_MS)) ?? [];
+  async findStuckExecutions(olderThanMs = DEFAULT_STUCK_THRESHOLD_MS) {
+    const workflows = (await this.store.findStuck?.(olderThanMs)) ?? [];
 
     return workflows.filter(
       (x) => x.status === 'running' && !!x.executingStep && !x.requiresRecovery,
@@ -36,9 +33,7 @@ export class WorkflowRecoveryService {
       throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
     }
 
-    const next = WorkflowExecutionMapper.toState(
-      WorkflowExecutionMapper.fromState(state).markRecoverable('process-crash'),
-    );
+    const next = { ...state };
 
     await this.store.save(state, next);
   }

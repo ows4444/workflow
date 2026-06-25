@@ -32,6 +32,10 @@ export interface WorkflowExecutionState<
 
   readonly requiresRecovery?: boolean;
 
+  readonly leaseOwner?: string;
+
+  readonly leaseExpiresAt?: Date;
+
   readonly historyCount: number;
 
   readonly lastFailure?: WorkflowFailure;

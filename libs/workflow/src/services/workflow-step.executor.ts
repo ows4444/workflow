@@ -1,19 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
 import { DEFAULT_STEP_TIMEOUT_MS } from '../constants/workflow.constants';
-
 import { RegisteredWorkflow } from '../contracts/registered-workflow';
 import { WorkflowContext } from '../contracts/workflow-context';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
 import { WorkflowSignal } from '../contracts/workflow-signal';
 import { WorkflowStepResult } from '../contracts/workflow-step-result';
-
 import { WorkflowRetryMetadata } from '../metadata/workflow-retry-metadata';
-
 import { WorkflowStepResolver } from './workflow-step-resolver';
-import { WorkflowStateTransitions } from './workflow-state.transitions';
-import { WorkflowStateService } from './workflow-state.service';
-
 import { WorkflowFailureError } from '../errors/workflow-failure.error';
 import { WorkflowExecutionError } from '../errors/workflow.errors';
 
@@ -24,11 +18,7 @@ interface RetryExecutionResult<T> {
 
 @Injectable()
 export class WorkflowStepExecutor {
-  constructor(
-    private readonly resolver: WorkflowStepResolver,
-    private readonly transitions: WorkflowStateTransitions,
-    private readonly stateService: WorkflowStateService,
-  ) {}
+  constructor(private readonly resolver: WorkflowStepResolver) {}
 
   async execute(
     workflow: RegisteredWorkflow,
@@ -62,11 +52,7 @@ export class WorkflowStepExecutor {
         workflow,
         state,
         () => handler.execute(context),
-        async (currentState) => {
-          const next = this.transitions.incrementRetry(currentState);
-
-          return this.stateService.save(currentState, next);
-        },
+        async (currentState) => currentState,
       );
     }, step.metadata.timeoutMs);
   }

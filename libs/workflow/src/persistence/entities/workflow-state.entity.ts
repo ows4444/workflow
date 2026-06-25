@@ -70,6 +70,15 @@ export class WorkflowStateEntity {
   @Column({ nullable: true, default: 0 })
   recoveryAttempts?: number;
 
+  @Column({ nullable: true })
+  leaseOwner?: string;
+
+  @Column({
+    type: 'datetime',
+    nullable: true,
+  })
+  leaseExpiresAt?: Date;
+
   @Column({
     type: 'datetime',
     nullable: true,
