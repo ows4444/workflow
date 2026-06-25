@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { WorkflowModule } from '@/workflow';
 import { UserController } from './presentation/http/user.controller';
 import { RegistrationService } from './application/services/registration.service';
 
@@ -27,6 +26,7 @@ import { PublishUserCreatedStep } from './workflows/registration/steps/publish-u
 
 import { ValidateInputStep } from './workflows/registration/steps/validate-input.step';
 import { UserRegistrationWorkflow } from './workflows/user.registration.workflow';
+import { WorkflowModule } from '@/workflow/public/workflow.module';
 
 @Module({
   imports: [WorkflowModule],

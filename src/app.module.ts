@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 
-import { WorkflowModule } from '@/workflow/workflow.module';
 import { UserModule } from './user/user.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { WorkflowModule } from '@/workflow/public/workflow.module';
 
 @Module({
   imports: [ScheduleModule.forRoot(), WorkflowModule, UserModule],

@@ -1,4 +1,4 @@
-import { createWorkflowStepId } from '@/workflow';
+import { createWorkflowStepId } from '@/workflow/models/workflow-step-id';
 
 export const REGISTRATION_WORKFLOW = 'user-registration';
 

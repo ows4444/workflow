@@ -1,10 +1,5 @@
 import { Inject } from '@nestjs/common';
-import {
-  Step,
-  WorkflowContext,
-  WorkflowStepHandler,
-  WorkflowStepResult,
-} from '@/workflow';
+
 import {
   NonRetriableWorkflowError,
   RetriableWorkflowError,
@@ -17,6 +12,10 @@ import {
 } from '../registration.constants';
 import { RegistrationState } from '../registration.state';
 import { EventPublisher } from '../../../application/events/event-publisher';
+import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
+import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
+import { Step } from '@/workflow/steps/step.decorator';
+import { WorkflowContext } from '@/workflow/types/workflow-context';
 
 @Step({
   workflow: REGISTRATION_WORKFLOW,

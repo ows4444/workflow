@@ -1,14 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { WorkflowStateEntity } from './entities/workflow-state.entity';
-import { WorkflowSignalEntity } from './entities/workflow-signal.entity';
-import { WorkflowStepHistoryEntity } from './entities/workflow-step-history.entity';
-
-import { TypeOrmWorkflowStateStore } from './stores/typeorm-workflow-state.store';
-import { TypeOrmWorkflowSignalStore } from './stores/typeorm-workflow-signal.store';
-import { TypeOrmWorkflowHistoryStore } from './stores/typeorm-workflow-history.store';
-
 import {
   WORKFLOW_HISTORY_STORE,
   WORKFLOW_IDEMPOTENCY_STORE,
@@ -16,10 +8,16 @@ import {
   WORKFLOW_STATE_STORE,
   WORKFLOW_TRANSACTION_RUNNER,
 } from '../constants/workflow.tokens';
-import { WorkflowIdempotencyEntity } from './entities/workflow-idempotency.entity';
-import { TypeOrmWorkflowIdempotencyStore } from './stores/typeorm-workflow-idempotency.store';
-import { TypeOrmWorkflowTransactionRunner } from './stores/typeorm-workflow-transaction-runner';
-import { TypeOrmWorkflowTransactionContext } from './stores/typeorm-workflow-transaction-context';
+import { WorkflowIdempotencyEntity } from './adapters/typeorm/entities/workflow-idempotency.entity';
+import { WorkflowSignalEntity } from './adapters/typeorm/entities/workflow-signal.entity';
+import { WorkflowStateEntity } from './adapters/typeorm/entities/workflow-state.entity';
+import { WorkflowStepHistoryEntity } from './adapters/typeorm/entities/workflow-step-history.entity';
+import { TypeOrmWorkflowHistoryStore } from './adapters/typeorm/stores/typeorm-workflow-history.store';
+import { TypeOrmWorkflowIdempotencyStore } from './adapters/typeorm/stores/typeorm-workflow-idempotency.store';
+import { TypeOrmWorkflowSignalStore } from './adapters/typeorm/stores/typeorm-workflow-signal.store';
+import { TypeOrmWorkflowStateStore } from './adapters/typeorm/stores/typeorm-workflow-state.store';
+import { TypeOrmWorkflowTransactionContext } from './adapters/typeorm/stores/typeorm-workflow-transaction-context';
+import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/typeorm-workflow-transaction-runner';
 
 @Module({
   imports: [

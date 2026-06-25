@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { WorkflowExecutor } from '@/workflow';
 import {
   REGISTRATION_WORKFLOW,
   REGISTRATION_SIGNALS,
 } from '../../../user/workflows/registration/registration.constants';
+import { WorkflowExecutor } from '@/workflow/engine/executor/executor';
 
 @Injectable()
 export class RegistrationService {

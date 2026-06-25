@@ -1,10 +1,5 @@
 import { Inject } from '@nestjs/common';
-import {
-  Step,
-  WorkflowContext,
-  WorkflowStepHandler,
-  WorkflowStepResult,
-} from '@/workflow';
+
 import { RetriableWorkflowError } from '@/workflow/errors';
 import { UserRepository } from '../../../domain/repositories/user.repository';
 import {
@@ -13,6 +8,10 @@ import {
   REGISTRATION_WORKFLOW,
 } from '../registration.constants';
 import { RegistrationState } from '../registration.state';
+import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
+import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
+import { Step } from '@/workflow/steps/step.decorator';
+import { WorkflowContext } from '@/workflow/types/workflow-context';
 
 @Step({
   workflow: REGISTRATION_WORKFLOW,
