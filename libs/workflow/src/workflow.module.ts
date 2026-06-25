@@ -4,6 +4,9 @@ import { DiscoveryModule } from '@nestjs/core';
 import {
   WORKFLOW_HISTORY_STORE,
   WORKFLOW_IDEMPOTENCY_STORE,
+  WORKFLOW_METRICS,
+  WORKFLOW_RETRY_JITTER,
+  WORKFLOW_RETRY_SCHEDULER,
   WORKFLOW_SIGNAL_STORE,
   WORKFLOW_STATE_STORE,
   WORKFLOW_TRANSACTION_RUNNER,
@@ -40,10 +43,21 @@ import { WorkflowLifecycleService } from './services/workflow-lifecycle.service'
 import { WorkflowRunner } from './services/workflow-runner.service';
 import { WorkflowLifecyclePublisher } from './services/workflow-lifecycle.publisher';
 import { WorkflowRetryDelayService } from './services/workflow-retry-delay.service';
+import { WorkflowLeaseService } from './services/workflow-lease.service';
+import { DefaultWorkflowRetryJitterService } from './services/default-workflow-retry-jitter.service';
+import { DefaultWorkflowRetryScheduler } from './services/default-workflow-retry-scheduler.service';
+import { WorkflowStepResultValidator } from './services/workflow-step-result.validator';
+import { WorkflowLogger } from './services/workflow-logger.service';
+import { WorkflowRetentionService } from './services/workflow-retention.service';
+import { NoopWorkflowMetricsService } from './services/noop-workflow-metrics.service';
+import { WorkflowQueryService } from './services/workflow-query.service';
+import { WorkflowClient } from './services/workflow-client.service';
+import { WorkflowCompensationService } from './services/workflow-compensation.service';
 
 @Module({
   imports: [DiscoveryModule],
   providers: [
+    WorkflowQueryService,
     WorkflowStateValidator,
     WorkflowStateFactory,
 
@@ -52,8 +66,21 @@ import { WorkflowRetryDelayService } from './services/workflow-retry-delay.servi
     WorkflowLifecyclePublisher,
     WorkflowLifecycleService,
     WorkflowRunner,
+    WorkflowCompensationService,
     WorkflowTransitionValidator,
+    WorkflowStepResultValidator,
+    DefaultWorkflowRetryJitterService,
 
+    {
+      provide: WORKFLOW_RETRY_JITTER,
+      useExisting: DefaultWorkflowRetryJitterService,
+    },
+
+    {
+      provide: WORKFLOW_RETRY_SCHEDULER,
+      useExisting: DefaultWorkflowRetryScheduler,
+    },
+    WorkflowClient,
     WorkflowRegistry,
     WorkflowDiscovery,
     WorkflowDefinitionValidator,
@@ -69,12 +96,21 @@ import { WorkflowRetryDelayService } from './services/workflow-retry-delay.servi
     WorkflowFailureService,
     WorkflowRetryService,
     WorkflowRetryDelayService,
+    WorkflowLeaseService,
+    WorkflowLogger,
+    WorkflowRetentionService,
 
     InMemoryIdempotencyStore,
     InMemoryWorkflowStateStore,
     InMemoryHistoryStore,
     InMemoryWorkflowSignalStore,
     InMemoryWorkflowTransactionRunner,
+    NoopWorkflowMetricsService,
+
+    {
+      provide: WORKFLOW_METRICS,
+      useExisting: NoopWorkflowMetricsService,
+    },
 
     {
       provide: WORKFLOW_HISTORY_STORE,
@@ -99,6 +135,8 @@ import { WorkflowRetryDelayService } from './services/workflow-retry-delay.servi
     },
   ],
   exports: [
+    WorkflowClient,
+    WorkflowQueryService,
     WorkflowRegistry,
     WorkflowStepResolver,
     WorkflowExecutor,

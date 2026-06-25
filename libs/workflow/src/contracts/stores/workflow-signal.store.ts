@@ -10,4 +10,6 @@ export interface WorkflowSignalStore {
   findPending(workflowId: string): Promise<readonly WorkflowSignalRecord[]>;
 
   exists(signalId: string): Promise<boolean>;
+
+  deleteByWorkflowId(workflowId: string): Promise<void>;
 }

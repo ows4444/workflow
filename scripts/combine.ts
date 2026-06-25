@@ -48,6 +48,7 @@ const IGNORE_NAMES = new Set([
 const IGNORE_PATH_PREFIXES = [
   'test', //
   'src/user', //
+  // 'libs/workflow/src/contracts', //
 
   'scripts',
 ];

@@ -66,6 +66,12 @@ export class WorkflowSignalProcessor {
   }
 
   async complete(workflowId: string, signalId: string): Promise<void> {
+    const existing = await this.signals.load(signalId);
+
+    if (existing?.processed) {
+      return;
+    }
+
     await this.signals.markProcessed(signalId);
 
     await this.idempotency.markCompleted(

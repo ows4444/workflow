@@ -17,8 +17,11 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
 
     this.states.set(state.workflowId, state);
   }
-  async findRecoverable() {
-    return this.values().filter((x) => x.requiresRecovery === true);
+  async findRecoverable(readyAt = new Date()) {
+    return this.values().filter(
+      (x) =>
+        x.requiresRecovery === true && (!x.retryAt || x.retryAt <= readyAt),
+    );
   }
 
   async findRunning() {
@@ -27,6 +30,14 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
 
   async findWaiting() {
     return this.values().filter((x) => x.status === 'waiting');
+  }
+
+  async findWaitingExpired(olderThanMs: number) {
+    const threshold = Date.now() - olderThanMs;
+
+    return this.values().filter(
+      (x) => x.status === 'waiting' && x.updatedAt.getTime() < threshold,
+    );
   }
 
   async findFailed() {
@@ -99,6 +110,25 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
     return true;
   }
 
+  async renewLease(
+    workflowId: string,
+    owner: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    const state = this.states.get(workflowId);
+
+    if (!state || state.leaseOwner !== owner) {
+      return false;
+    }
+
+    this.states.set(workflowId, {
+      ...state,
+      leaseExpiresAt: expiresAt,
+    });
+
+    return true;
+  }
+
   async releaseLease(workflowId: string, owner: string): Promise<void> {
     const state = this.states.get(workflowId);
 
@@ -119,5 +149,75 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
 
   private values(): WorkflowExecutionState[] {
     return [...this.states.values()];
+  }
+
+  async deleteCompleted(
+    workflowName?: string,
+    workflowVersion?: number,
+    olderThanMs = 0,
+  ): Promise<number> {
+    const threshold = Date.now() - olderThanMs;
+
+    let deleted = 0;
+
+    for (const [id, state] of this.states) {
+      if (state.status !== 'completed' || !state.completedAt) {
+        continue;
+      }
+
+      if (state.completedAt.getTime() >= threshold) {
+        continue;
+      }
+
+      if (workflowName && state.workflowName !== workflowName) {
+        continue;
+      }
+
+      if (
+        workflowVersion !== undefined &&
+        state.workflowVersion !== workflowVersion
+      ) {
+        continue;
+      }
+
+      this.states.delete(id);
+      deleted++;
+    }
+
+    return deleted;
+  }
+
+  async findCompleted(
+    workflowName?: string,
+    workflowVersion?: number,
+    olderThanMs = 0,
+    limit?: number,
+  ): Promise<WorkflowExecutionState[]> {
+    const threshold = Date.now() - olderThanMs;
+
+    return this.values()
+      .filter((state) => {
+        if (state.status !== 'completed' || !state.completedAt) {
+          return false;
+        }
+
+        if (state.completedAt.getTime() >= threshold) {
+          return false;
+        }
+
+        if (workflowName && state.workflowName !== workflowName) {
+          return false;
+        }
+
+        if (
+          workflowVersion !== undefined &&
+          state.workflowVersion !== workflowVersion
+        ) {
+          return false;
+        }
+
+        return true;
+      })
+      .slice(0, limit);
   }
 }

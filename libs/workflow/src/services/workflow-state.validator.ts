@@ -14,6 +14,16 @@ export class WorkflowStateValidator {
 
     switch (state.status) {
       case 'running':
+        if (state.waitingSince) {
+          throw new WorkflowExecutionError(
+            `Running workflow '${state.workflowId}' cannot have waitingSince`,
+          );
+        }
+
+        if (state.requiresRecovery) {
+          break;
+        }
+
         if (
           state.executingStep !== undefined &&
           state.stepStartedAt === undefined
@@ -55,6 +65,12 @@ export class WorkflowStateValidator {
         if (!state.waitingForSignal) {
           throw new WorkflowExecutionError(
             `Waiting workflow '${state.workflowId}' has no signal`,
+          );
+        }
+
+        if (!state.waitingSince) {
+          throw new WorkflowExecutionError(
+            `Waiting workflow '${state.workflowId}' missing waitingSince`,
           );
         }
 

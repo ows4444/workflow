@@ -6,4 +6,6 @@ export interface WorkflowExecutionHistoryStore {
   findByWorkflowId(
     workflowId: string,
   ): Promise<readonly WorkflowStepExecution[]>;
+
+  delete(workflowId: string): Promise<void>;
 }

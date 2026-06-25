@@ -36,4 +36,18 @@ export class WorkflowLifecyclePublisher {
   ): Promise<void> {
     await this.hooks.execute(state, workflow.metadata.hooks?.onCancel);
   }
+
+  async expired(
+    workflow: RegisteredWorkflow,
+    state: WorkflowExecutionState,
+  ): Promise<void> {
+    await this.hooks.execute(state, workflow.metadata.hooks?.onExpire);
+  }
+
+  async signalled(
+    workflow: RegisteredWorkflow,
+    state: WorkflowExecutionState,
+  ): Promise<void> {
+    await this.hooks.execute(state, workflow.metadata.hooks?.onSignal);
+  }
 }

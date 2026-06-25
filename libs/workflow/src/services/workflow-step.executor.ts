@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { DEFAULT_STEP_TIMEOUT_MS } from '../constants/workflow.constants';
 import { RegisteredWorkflow } from '../contracts/registered-workflow';
@@ -6,10 +6,20 @@ import { WorkflowContext } from '../contracts/workflow-context';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
 import { WorkflowSignal } from '../contracts/workflow-signal';
 import { WorkflowStepResult } from '../contracts/workflow-step-result';
-import { WorkflowRetryMetadata } from '../metadata/workflow-retry-metadata';
 import { WorkflowStepResolver } from './workflow-step-resolver';
 import { WorkflowFailureError } from '../errors/workflow-failure.error';
 import { WorkflowExecutionError } from '../errors/workflow.errors';
+import { WorkflowRetryDelayService } from './workflow-retry-delay.service';
+import { WorkflowStateTransitions } from './workflow-state.transitions';
+import { WorkflowStateService } from './workflow-state.service';
+import { type WorkflowRetryJitter } from '../contracts/workflow-retry-jitter';
+import {
+  WORKFLOW_RETRY_JITTER,
+  WORKFLOW_RETRY_SCHEDULER,
+} from '../constants/workflow.tokens';
+import { type WorkflowRetryScheduler } from '../contracts/workflow-retry-scheduler';
+import { WorkflowLeaseService } from './workflow-lease.service';
+import { WorkflowStepResultValidator } from './workflow-step-result.validator';
 
 interface RetryExecutionResult<T> {
   readonly result: T;
@@ -18,7 +28,22 @@ interface RetryExecutionResult<T> {
 
 @Injectable()
 export class WorkflowStepExecutor {
-  constructor(private readonly resolver: WorkflowStepResolver) {}
+  constructor(
+    private readonly resolver: WorkflowStepResolver,
+    private readonly retryDelay: WorkflowRetryDelayService,
+
+    private readonly validator: WorkflowStepResultValidator,
+
+    @Inject(WORKFLOW_RETRY_JITTER)
+    private readonly retryJitter: WorkflowRetryJitter,
+
+    @Inject(WORKFLOW_RETRY_SCHEDULER)
+    private readonly retryScheduler: WorkflowRetryScheduler,
+
+    private readonly transitions: WorkflowStateTransitions,
+    private readonly stateService: WorkflowStateService,
+    private readonly leaseService: WorkflowLeaseService,
+  ) {}
 
   async execute(
     workflow: RegisteredWorkflow,
@@ -45,15 +70,36 @@ export class WorkflowStepExecutor {
 
         data: state.data,
         signal,
-        abortSignal,
+        runtime: {
+          abortSignal,
+          isCancelled: () => abortSignal.aborted,
+        },
       };
 
-      return this.executeWithRetry(
-        workflow,
-        state,
-        () => handler.execute(context),
-        async (currentState) => currentState,
-      );
+      await this.leaseService.renew(state.workflowId);
+
+      const stopKeepAlive = this.leaseService.keepAlive(state.workflowId);
+
+      try {
+        return await this.executeWithRetry(
+          workflow,
+          state,
+          () => handler.execute(context),
+          async (currentState) => {
+            const next = this.transitions.incrementStepRetry(currentState);
+            return this.stateService.save(currentState, next);
+          },
+        ).then((execution) => {
+          this.validator.validate(
+            workflow,
+            state.currentStep!,
+            execution.result,
+          );
+          return execution;
+        });
+      } finally {
+        stopKeepAlive();
+      }
     }, step.metadata.timeoutMs);
   }
 
@@ -79,13 +125,14 @@ export class WorkflowStepExecutor {
     const maxAttempts = Math.max(1, retry.maxAttempts);
 
     let attempt = 0;
+    let latestState = state;
 
     while (true) {
       try {
         const result = await operation();
         return {
           result,
-          latestState: state,
+          latestState,
         };
       } catch (error) {
         if (!this.isRetriable(error)) {
@@ -98,42 +145,16 @@ export class WorkflowStepExecutor {
           throw error;
         }
 
-        state = await onRetry(state);
+        latestState = await onRetry(latestState);
 
-        await this.sleep(this.computeDelay(retry, attempt));
+        const delay = this.retryDelay.compute(retry, attempt);
+
+        await this.retryScheduler.wait(
+          this.retryJitter.apply(delay, attempt),
+          attempt,
+        );
       }
     }
-  }
-
-  private computeDelay(retry: WorkflowRetryMetadata, attempt: number): number {
-    let delay: number;
-
-    switch (retry.strategy) {
-      case 'fixed':
-        delay = retry.delayMs ?? 1000;
-        break;
-
-      case 'linear':
-        delay = (retry.delayMs ?? 1000) * attempt;
-        break;
-
-      case 'exponential':
-        delay = Math.min(
-          (retry.delayMs ?? 1000) * 2 ** (attempt - 1),
-          retry.maxDelayMs ?? Number.MAX_SAFE_INTEGER,
-        );
-        break;
-
-      default:
-        retry.strategy satisfies never;
-        delay = retry.delayMs ?? 1000;
-    }
-
-    return Math.max(0, Math.floor(delay * (0.8 + Math.random() * 0.4)));
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async executeStepWithTimeout<T>(

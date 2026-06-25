@@ -1,3 +1,4 @@
+import { WorkflowRuntime } from './workflow-runtime';
 import { WorkflowSignal } from './workflow-signal';
 
 export interface WorkflowContext<TState extends object = object> {
@@ -9,5 +10,5 @@ export interface WorkflowContext<TState extends object = object> {
   readonly currentStep?: string;
   readonly data: Readonly<TState>;
   readonly signal?: WorkflowSignal;
-  readonly abortSignal: AbortSignal;
+  readonly runtime: WorkflowRuntime;
 }

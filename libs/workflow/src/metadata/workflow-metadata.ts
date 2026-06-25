@@ -3,6 +3,7 @@ import { WorkflowDefinitionMetadata } from './workflow-definition-metadata';
 import { WorkflowRetryMetadata } from './workflow-retry-metadata';
 import { WorkflowHookMetadata } from './workflow-hook-metadata';
 import { WorkflowAutoResumeMetadata } from './workflow-auto-resume-metadata';
+import { WorkflowRetentionMetadata } from './workflow-retention-metadata';
 // import { WorkflowPersistenceMetadata } from './workflow-persistence-metadata';
 // import { WorkflowRetentionMetadata } from './workflow-retention-metadata';
 // import { WorkflowSignalMetadata } from './workflow-signal-metadata';
@@ -32,9 +33,9 @@ export interface WorkflowMetadata {
 
   readonly autoResume?: WorkflowAutoResumeMetadata;
 
-  // readonly persistence?: WorkflowPersistenceMetadata;
+  readonly retention?: WorkflowRetentionMetadata;
 
-  // readonly retention?: WorkflowRetentionMetadata;
+  // readonly persistence?: WorkflowPersistenceMetadata;
 
   // readonly signals?: WorkflowSignalMetadata;
 

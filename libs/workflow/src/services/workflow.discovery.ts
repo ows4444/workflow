@@ -113,6 +113,8 @@ export class WorkflowDiscovery implements OnModuleInit {
       workflow.steps.set(metadata.step, {
         metadata,
         type: type as Type<WorkflowStepHandler>,
+
+        compensation: metadata.compensation?.handler,
       });
     }
 

@@ -4,6 +4,7 @@ import { WorkflowStepHandler } from './workflow-step-handler';
 import { WorkflowStepId } from './workflow-step-id';
 import { WorkflowMetadata } from '../metadata/workflow-metadata';
 import { WorkflowStepMetadata } from '../metadata/workflow-step-metadata';
+import { WorkflowCompensationHandler } from './workflow-compensation-handler';
 
 export interface RegisteredWorkflowStep {
   readonly metadata: WorkflowStepMetadata;
@@ -22,4 +23,6 @@ export interface RegisteredWorkflow {
     WorkflowStepId,
     ReadonlySet<WorkflowStepId>
   >;
+
+  readonly compensation?: Type<WorkflowCompensationHandler>;
 }

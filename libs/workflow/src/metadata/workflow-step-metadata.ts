@@ -1,4 +1,5 @@
 import { WorkflowStepId } from '../contracts/workflow-step-id';
+import { WorkflowStepCompensationMetadata } from './workflow-step-compensation-metadata';
 
 export interface WorkflowStepMetadata {
   readonly workflow: string;
@@ -6,6 +7,12 @@ export interface WorkflowStepMetadata {
   readonly workflowVersion?: number;
 
   readonly step: WorkflowStepId;
+
+  readonly deprecated?: boolean;
+
+  readonly replacedBy?: WorkflowStepId;
+
+  readonly compensation?: WorkflowStepCompensationMetadata;
 
   readonly timeoutMs?: number;
 }

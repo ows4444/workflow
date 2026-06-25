@@ -62,4 +62,10 @@ export class TypeOrmWorkflowHistoryStore implements WorkflowExecutionHistoryStor
       error: entity.error,
     }));
   }
+
+  async delete(workflowId: string): Promise<void> {
+    await this.repository.delete({
+      workflowId,
+    });
+  }
 }

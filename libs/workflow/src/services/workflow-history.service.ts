@@ -24,4 +24,8 @@ export class WorkflowHistoryService {
   ): Promise<readonly WorkflowStepExecution[]> {
     return (await this.store?.findByWorkflowId(workflowId)) ?? [];
   }
+
+  async delete(workflowId: string): Promise<void> {
+    await this.store?.delete(workflowId);
+  }
 }

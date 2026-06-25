@@ -20,9 +20,13 @@ export interface WorkflowExecutionState<
 
   readonly recoveryAttempts?: number;
 
+  readonly retryAt?: Date;
+
   readonly lastRecoveryAt?: Date;
 
   readonly waitingForSignal?: WorkflowSignal;
+
+  readonly waitingSince?: Date;
 
   readonly resumeStep?: WorkflowStepId;
 
@@ -44,7 +48,7 @@ export interface WorkflowExecutionState<
 
   readonly failureCount?: number;
 
-  readonly retryCount?: number;
+  readonly stepRetryCount?: number;
 
   readonly stateVersion: number;
 

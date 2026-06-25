@@ -40,4 +40,12 @@ export class InMemoryIdempotencyStore implements WorkflowIdempotencyStore {
       completed: true,
     });
   }
+
+  async deleteByWorkflowId(workflowId: string): Promise<void> {
+    for (const [key, entry] of this.entries) {
+      if (entry.workflowId === workflowId) {
+        this.entries.delete(key);
+      }
+    }
+  }
 }

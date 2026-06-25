@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, LessThan, Repository } from 'typeorm';
+import {
+  DataSource,
+  FindOptionsWhere,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  Repository,
+} from 'typeorm';
 
 import { WorkflowStateStore } from '../../contracts/stores/workflow-state-store';
 import { WorkflowExecutionState } from '../../contracts/workflow-execution-state';
@@ -52,6 +59,24 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     return result.affected === 1;
   }
 
+  async renewLease(
+    workflowId: string,
+    owner: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update()
+      .set({
+        leaseExpiresAt: expiresAt,
+      })
+      .where('workflowId = :workflowId', { workflowId })
+      .andWhere('leaseOwner = :owner', { owner })
+      .execute();
+
+    return result.affected === 1;
+  }
+
   async releaseLease(workflowId: string, owner: string): Promise<void> {
     await this.repository.update(
       {
@@ -79,9 +104,16 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     }
   }
 
-  async findRecoverable(): Promise<WorkflowExecutionState[]> {
+  async findRecoverable(
+    readyAt = new Date(),
+  ): Promise<WorkflowExecutionState[]> {
     return this.repository
-      .find({ where: { requiresRecovery: true } })
+      .find({
+        where: [
+          { requiresRecovery: true, retryAt: IsNull() },
+          { requiresRecovery: true, retryAt: LessThanOrEqual(readyAt) },
+        ],
+      })
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 
@@ -117,6 +149,16 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     return this.findByStatus('waiting');
   }
 
+  async findWaitingExpired(
+    olderThanMs: number,
+  ): Promise<WorkflowExecutionState[]> {
+    const threshold = new Date(Date.now() - olderThanMs);
+
+    return this.repository
+      .find({ where: { status: 'waiting', updatedAt: LessThan(threshold) } })
+      .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
+  }
+
   async save(
     previousState: WorkflowExecutionState,
     nextState: WorkflowExecutionState,
@@ -148,15 +190,62 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 
-  async deleteCompleted(olderThanMs = 0): Promise<number> {
+  async deleteCompleted(
+    workflowName?: string,
+    workflowVersion?: number,
+    olderThanMs = 0,
+    limit?: number,
+  ): Promise<number> {
     const threshold = new Date(Date.now() - olderThanMs);
 
-    const result = await this.repository.delete({
-      status: 'completed',
-      completedAt: LessThan(threshold),
-    });
+    const qb = this.repository
+      .createQueryBuilder()
+      .delete()
+      .where('status = :status', { status: 'completed' })
+      .andWhere('completedAt < :threshold', { threshold });
+
+    if (workflowName !== undefined) {
+      qb.andWhere('workflowName = :workflowName', { workflowName });
+    }
+
+    if (limit !== undefined) {
+      qb.take(limit);
+    }
+
+    if (workflowVersion !== undefined) {
+      qb.andWhere('workflowVersion = :workflowVersion', {
+        workflowVersion,
+      });
+    }
+
+    const result = await qb.execute();
 
     return result.affected ?? 0;
+  }
+
+  async findCompleted(
+    workflowName?: string,
+    workflowVersion?: number,
+    olderThanMs = 0,
+  ): Promise<WorkflowExecutionState[]> {
+    const threshold = new Date(Date.now() - olderThanMs);
+
+    const where: FindOptionsWhere<WorkflowStateEntity> = {
+      status: 'completed',
+      completedAt: LessThan(threshold),
+    };
+
+    if (workflowName !== undefined) {
+      where.workflowName = workflowName;
+    }
+
+    if (workflowVersion !== undefined) {
+      where.workflowVersion = workflowVersion;
+    }
+
+    return this.repository
+      .find({ where })
+      .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 
   async delete(workflowId: string): Promise<void> {

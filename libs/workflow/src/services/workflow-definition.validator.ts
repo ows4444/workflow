@@ -13,6 +13,23 @@ export class WorkflowDefinitionValidator {
     this.validateCycles(workflow);
     this.validateTerminalSteps(workflow);
     this.validateRetryPolicy(workflow);
+    this.validateDeprecatedSteps(workflow);
+  }
+
+  private validateDeprecatedSteps(workflow: RegisteredWorkflow): void {
+    for (const step of workflow.steps.values()) {
+      const metadata = step.metadata;
+
+      if (!metadata.replacedBy) {
+        continue;
+      }
+
+      if (!workflow.steps.has(metadata.replacedBy)) {
+        throw new WorkflowConfigurationError(
+          `Step '${metadata.step}' replaces unknown step '${metadata.replacedBy}'`,
+        );
+      }
+    }
   }
 
   private validateTerminalSteps(workflow: RegisteredWorkflow): void {

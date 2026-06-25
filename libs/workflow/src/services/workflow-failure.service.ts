@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { WorkflowFailure } from '../contracts/workflow-failure';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
@@ -12,6 +12,9 @@ import { WorkflowStateService } from './workflow-state.service';
 import { WorkflowRegistry } from './workflow.registry';
 import { WorkflowRetryService } from './workflow-retry.service';
 import { WorkflowLifecyclePublisher } from './workflow-lifecycle.publisher';
+import { type WorkflowTransactionRunner } from '../contracts/stores/workflow-transaction-runner';
+import { WORKFLOW_TRANSACTION_RUNNER } from '../constants/workflow.tokens';
+import { WorkflowLogger } from './workflow-logger.service';
 
 @Injectable()
 export class WorkflowFailureService {
@@ -22,6 +25,10 @@ export class WorkflowFailureService {
     private readonly retryService: WorkflowRetryService,
     private readonly registry: WorkflowRegistry,
     private readonly publisher: WorkflowLifecyclePublisher,
+    private readonly logger: WorkflowLogger,
+
+    @Inject(WORKFLOW_TRANSACTION_RUNNER)
+    private readonly transactionRunner: WorkflowTransactionRunner,
   ) {}
 
   serialize(error: unknown): string {
@@ -75,22 +82,26 @@ export class WorkflowFailureService {
       return;
     }
 
-    await this.history.append(state.workflowId, {
-      step: failedStep,
-      startedAt: state.stepStartedAt ?? failedAt,
-      completedAt: failedAt,
-      durationMs:
-        failedAt.getTime() - (state.stepStartedAt ?? failedAt).getTime(),
-      status: 'failed',
-      error: this.serialize(error),
+    const persisted = await this.transactionRunner.execute(async () => {
+      await this.history.append(state.workflowId, {
+        step: failedStep,
+        startedAt: state.stepStartedAt ?? failedAt,
+        completedAt: failedAt,
+        durationMs:
+          failedAt.getTime() - (state.stepStartedAt ?? failedAt).getTime(),
+        status: 'failed',
+        error: this.serialize(error),
+      });
+
+      const failedState = this.transitions.failWorkflow(
+        state,
+        this.toFailure(error),
+      );
+
+      return this.stateService.save(state, failedState);
     });
 
-    const failedState = this.transitions.failWorkflow(
-      state,
-      this.toFailure(error),
-    );
-
-    const persisted = await this.stateService.save(state, failedState);
+    this.logger.failed(persisted, error);
 
     const latest =
       (await this.stateService.load(persisted.workflowId)) ?? persisted;
@@ -100,12 +111,14 @@ export class WorkflowFailureService {
       latest.workflowVersion,
     );
 
-    await this.publisher.failed(workflow, latest);
+    this.transactionRunner.afterCommit?.(() =>
+      this.publisher.failed(workflow, latest),
+    );
 
-    const maxAttempts = workflow.metadata.retries?.maxAttempts ?? 0;
+    const retry = workflow.metadata.retries;
 
-    if (this.retryService.canRetry(latest, maxAttempts)) {
-      await this.retryService.retry(latest);
+    if (retry && this.retryService.canRetry(latest, retry.maxAttempts)) {
+      await this.retryService.retry(latest, retry);
     }
   }
 }

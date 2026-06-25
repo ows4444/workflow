@@ -23,4 +23,8 @@ export class InMemoryHistoryStore implements WorkflowExecutionHistoryStore {
   ): Promise<readonly WorkflowStepExecution[]> {
     return this.executions.get(workflowId) ?? [];
   }
+
+  async delete(workflowId: string): Promise<void> {
+    this.executions.delete(workflowId);
+  }
 }

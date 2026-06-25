@@ -16,6 +16,12 @@ export interface WorkflowStateStore {
     expiresAt: Date,
   ): Promise<boolean>;
 
+  renewLease?(
+    workflowId: string,
+    owner: string,
+    expiresAt: Date,
+  ): Promise<boolean>;
+
   releaseLease?(workflowId: string, owner: string): Promise<void>;
 
   delete(workflowId: string): Promise<void>;
@@ -24,11 +30,33 @@ export interface WorkflowStateStore {
 
   findWaiting?(): Promise<WorkflowExecutionState[]>;
 
+  findWaitingExpired?(
+    olderThanMs: number,
+    limit?: number,
+  ): Promise<WorkflowExecutionState[]>;
+
   findFailed?(): Promise<WorkflowExecutionState[]>;
 
-  findRecoverable?(): Promise<WorkflowExecutionState[]>;
+  findCompleted?(
+    workflowName?: string,
+    workflowVersion?: number,
+    olderThanMs?: number,
+    limit?: number,
+  ): Promise<WorkflowExecutionState[]>;
 
-  findStuck?(olderThanMs: number): Promise<WorkflowExecutionState[]>;
+  findRecoverable?(
+    readyAt?: Date,
+    limit?: number,
+  ): Promise<WorkflowExecutionState[]>;
 
-  deleteCompleted?(olderThanMs?: number): Promise<number>;
+  findStuck?(
+    olderThanMs: number,
+    limit?: number,
+  ): Promise<WorkflowExecutionState[]>;
+
+  deleteCompleted?(
+    workflowName?: string,
+    workflowVersion?: number,
+    olderThanMs?: number,
+  ): Promise<number>;
 }

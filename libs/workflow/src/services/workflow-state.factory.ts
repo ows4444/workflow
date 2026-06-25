@@ -1,19 +1,43 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
 import { RegisteredWorkflow } from '../contracts/registered-workflow';
 import { WorkflowExecutionState } from '../contracts/workflow-execution-state';
 
 @Injectable()
 export class WorkflowStateFactory {
-  constructor() {}
-
   create(
     workflow: RegisteredWorkflow,
     initialData: Record<string, unknown>,
   ): WorkflowExecutionState {
-    void workflow;
-    void initialData;
+    const now = new Date();
+    const startStep = workflow.metadata.definition.start;
 
-    return {} as WorkflowExecutionState;
+    return {
+      executionId: randomUUID(),
+      workflowId: randomUUID(),
+
+      workflowName: workflow.metadata.name,
+      workflowVersion: workflow.metadata.version,
+
+      status: 'running',
+
+      currentStep: startStep,
+      executingStep: undefined,
+      stepStartedAt: undefined,
+
+      iteration: 0,
+      historyCount: 0,
+
+      stepRetryCount: 0,
+      failureCount: 0,
+
+      stateVersion: 0,
+
+      createdAt: now,
+      updatedAt: now,
+
+      data: { ...initialData },
+    };
   }
 }

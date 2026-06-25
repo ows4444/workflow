@@ -44,4 +44,8 @@ export class WorkflowSignalService {
   async pending(workflowId: string) {
     return this.store.findPending(workflowId);
   }
+
+  async deleteByWorkflowId(workflowId: string): Promise<void> {
+    await this.store.deleteByWorkflowId(workflowId);
+  }
 }

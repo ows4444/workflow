@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
 import { WorkflowStepHandler } from '../contracts/workflow-step-handler';
+import { WorkflowCompensationHandler } from '../contracts/workflow-compensation-handler';
 
 @Injectable()
 export class WorkflowStepResolver {
@@ -10,6 +11,14 @@ export class WorkflowStepResolver {
   resolve(
     type: new (...args: never[]) => WorkflowStepHandler,
   ): WorkflowStepHandler {
+    return this.moduleRef.get(type, {
+      strict: false,
+    });
+  }
+
+  resolveCompensation(
+    type: new (...args: never[]) => WorkflowCompensationHandler,
+  ): WorkflowCompensationHandler {
     return this.moduleRef.get(type, {
       strict: false,
     });

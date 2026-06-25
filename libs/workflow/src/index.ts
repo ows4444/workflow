@@ -8,6 +8,8 @@ export * from './decorators/workflow-step.decorator';
 export * from './decorators/workflow.decorator';
 
 export * from './contracts/workflow-context';
+export * from './contracts/workflow-runtime';
+
 export * from './contracts/workflow-step-handler';
 export * from './contracts/workflow-step-result';
 export * from './metadata/workflow-step-metadata';
@@ -23,3 +25,6 @@ export * from './contracts/workflow-signal';
 export * from './errors/workflow.errors';
 export * from './contracts/workflow-status';
 export * from './persistence/workflow-persistence.module';
+export * from './services/workflow-query.service';
+export * from './services/workflow-client.service';
+export * from './contracts/workflow-compensation-handler';

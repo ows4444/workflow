@@ -53,10 +53,16 @@ export class WorkflowStateEntity {
   resumeStep?: string;
 
   @Column({ nullable: true })
-  retryCount?: number;
+  stepRetryCount?: number;
 
   @Column({ nullable: true, type: 'json' })
   waitingForSignal?: WorkflowSignal;
+
+  @Column({
+    type: 'datetime',
+    nullable: true,
+  })
+  waitingSince?: Date;
 
   @Column()
   iteration!: number;
@@ -84,6 +90,12 @@ export class WorkflowStateEntity {
     nullable: true,
   })
   lastRecoveryAt?: Date;
+
+  @Column({
+    type: 'datetime',
+    nullable: true,
+  })
+  retryAt?: Date;
 
   @Column({ type: 'datetime' })
   createdAt!: Date;

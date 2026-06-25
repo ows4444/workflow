@@ -115,4 +115,10 @@ export class TypeOrmWorkflowSignalStore implements WorkflowSignalStore {
       },
     }));
   }
+
+  async deleteByWorkflowId(workflowId: string): Promise<void> {
+    await this.repository.delete({
+      workflowId,
+    });
+  }
 }

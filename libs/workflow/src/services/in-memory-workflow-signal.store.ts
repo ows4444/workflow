@@ -47,4 +47,12 @@ export class InMemoryWorkflowSignalStore implements WorkflowSignalStore {
   async exists(signalId: string): Promise<boolean> {
     return this.records.has(signalId);
   }
+
+  async deleteByWorkflowId(workflowId: string): Promise<void> {
+    for (const [signalId, record] of this.records) {
+      if (record.workflowId === workflowId) {
+        this.records.delete(signalId);
+      }
+    }
+  }
 }
