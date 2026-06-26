@@ -1,7 +1,7 @@
-import { WorkflowConfigurationError } from '@/workflow/errors/workflow.errors';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowStepId } from '@/workflow/models/workflow-step-id';
 import { Injectable } from '@nestjs/common';
+import { WorkflowConfigurationError } from '../../errors/workflow.errors';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowStepId } from '../../models/workflow-step-id';
 
 @Injectable()
 export class WorkflowDefinitionValidator {
@@ -13,11 +13,42 @@ export class WorkflowDefinitionValidator {
     this.validateTerminalSteps(workflow);
     this.validateRetryPolicy(workflow);
     this.validateDeprecatedSteps(workflow);
+    this.validateChildWorkflows(workflow);
+  }
+
+  private validateChildWorkflows(workflow: RegisteredWorkflow): void {
+    const children = workflow.metadata.childWorkflows;
+
+    if (!children) {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    const seen = new Set<Function>();
+
+    for (const child of children) {
+      if (seen.has(child.workflow)) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' declares child workflow '${child.workflow.name}' more than once.`,
+        );
+      }
+
+      seen.add(child.workflow);
+    }
   }
 
   private validateDeprecatedSteps(workflow: RegisteredWorkflow): void {
     for (const step of workflow.steps.values()) {
       const metadata = step.metadata;
+
+      if (
+        metadata.deprecated &&
+        workflow.metadata.definition.start === metadata.step
+      ) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' cannot start on deprecated step '${metadata.step}'.`,
+        );
+      }
 
       if (!metadata.replacedBy) {
         continue;
@@ -26,6 +57,12 @@ export class WorkflowDefinitionValidator {
       if (!workflow.steps.has(metadata.replacedBy)) {
         throw new WorkflowConfigurationError(
           `Step '${metadata.step}' replaces unknown step '${metadata.replacedBy}'`,
+        );
+      }
+
+      if (metadata.replacedBy === metadata.step) {
+        throw new WorkflowConfigurationError(
+          `Step '${metadata.step}' cannot replace itself.`,
         );
       }
     }

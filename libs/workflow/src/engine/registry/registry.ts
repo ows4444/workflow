@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { WorkflowConfigurationError } from '../../errors/workflow.errors';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
 
 @Injectable()
 export class WorkflowRegistry {

@@ -1,46 +1,52 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { WorkflowRegistry } from '../engine/registry/registry';
 import { WorkflowStateService } from '../engine/state/service';
+import { WorkflowQueryService } from '../public/api/workflow-query.service';
+import { WORKFLOW_ARCHIVE_STORE } from '../constants/workflow.tokens';
+import { type WorkflowArchiveStore } from '../ports/workflow-archive.store';
 
 @Injectable()
 export class WorkflowRetentionService {
   constructor(
     private readonly registry: WorkflowRegistry,
     private readonly stateService: WorkflowStateService,
+    private readonly queryService: WorkflowQueryService,
+
+    @Optional()
+    @Inject(WORKFLOW_ARCHIVE_STORE)
+    private readonly archiveStore?: WorkflowArchiveStore,
   ) {}
 
   @Interval(60_000)
   async cleanup(): Promise<void> {
-    const ttlMs = Math.min(
-      ...this.registry
-        .getAll()
-        .map((w) => w.metadata.retention?.ttlMs)
-        .filter((ttl): ttl is number => ttl !== undefined),
-    );
+    for (const definition of this.registry.getAll()) {
+      const retention = definition.metadata.retention;
 
-    if (!Number.isFinite(ttlMs)) {
-      return;
-    }
-    const batchSize =
-      Math.max(
-        ...this.registry
-          .getAll()
-          .map((w) => w.metadata.retention?.batchSize ?? 0),
-      ) || undefined;
+      if (!retention) {
+        continue;
+      }
 
-    const completed = await this.stateService.findCompleted(
-      undefined,
-      undefined,
-      ttlMs,
-      batchSize,
-    );
+      const completed = await this.stateService.findCompleted(
+        definition.metadata.name,
+        definition.metadata.version,
+        retention.ttlMs,
+        retention.batchSize,
+      );
 
-    for (const workflow of completed) {
-      try {
-        await this.stateService.delete(workflow.workflowId);
-      } catch {
-        // Individual cleanup failures must not abort the batch.
+      for (const workflow of completed) {
+        try {
+          const retention = definition.metadata.retention;
+
+          if (retention?.archiveBeforeDelete) {
+            const details = await this.queryService.get(workflow.workflowId);
+            await this.archiveStore?.archive(details);
+          }
+
+          await this.stateService.delete(workflow.workflowId);
+        } catch {
+          // Individual cleanup failures must not abort the batch.
+        }
       }
     }
   }

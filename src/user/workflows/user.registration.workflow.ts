@@ -1,4 +1,4 @@
-import { Workflow } from '@/workflow/workflow/workflow.decorator';
+import { Workflow } from '../../../libs/workflow/src/workflow/workflow.decorator';
 import {
   REGISTRATION_STEPS,
   REGISTRATION_VERSION,

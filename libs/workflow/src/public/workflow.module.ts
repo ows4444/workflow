@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import {
+  WORKFLOW_ARCHIVE_STORE,
   WORKFLOW_HISTORY_STORE,
   WORKFLOW_IDEMPOTENCY_STORE,
   WORKFLOW_METRICS,
@@ -50,6 +51,7 @@ import { InMemoryWorkflowStateStore } from '../testing/fakes/in-memory-workflow-
 import { InMemoryWorkflowTransactionRunner } from '../testing/fakes/in-memory-workflow-transaction-runner';
 import { WorkflowClient } from './api/workflow-client';
 import { WorkflowQueryService } from './api/workflow-query.service';
+import { NoopWorkflowArchiveStore } from '../retention/noop-archive.store';
 
 @Module({
   imports: [DiscoveryModule],
@@ -70,6 +72,12 @@ import { WorkflowQueryService } from './api/workflow-query.service';
     WorkflowStepResultValidator,
     DefaultWorkflowRetryJitterService,
     DefaultWorkflowRetryScheduler,
+    NoopWorkflowArchiveStore,
+
+    {
+      provide: WORKFLOW_ARCHIVE_STORE,
+      useExisting: NoopWorkflowArchiveStore,
+    },
 
     {
       provide: WORKFLOW_RETRY_JITTER,

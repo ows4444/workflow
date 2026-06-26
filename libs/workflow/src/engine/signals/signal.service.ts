@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import { WORKFLOW_SIGNAL_STORE } from '../../constants/workflow.tokens';
 import { type WorkflowSignalStore } from '../../ports/workflow-signal.store';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
+import { WorkflowSignal } from '../../models/workflow-signal';
 
 @Injectable()
 export class WorkflowSignalService {

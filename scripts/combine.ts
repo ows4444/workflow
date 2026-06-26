@@ -1,18 +1,35 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { parseArgs } from 'node:util';
+
+const args = parseArgs({
+  allowPositionals: true,
+  options: {
+    output: {
+      short: 'o',
+      type: 'string',
+      default: 'combine-part',
+    },
+    'max-chars': {
+      type: 'string',
+      default: '175000',
+    },
+  },
+});
 
 const ROOT_DIR = process.cwd();
-const OUTPUT_PREFIX = 'combine-part';
-const MAX_CHARS = 175_000;
 
+const INPUTS =
+  args.positionals.length > 0
+    ? args.positionals.map((p) => path.resolve(p))
+    : [ROOT_DIR];
+
+const OUTPUT_PREFIX = args.values.output;
+const MAX_CHARS = Number(args.values['max-chars']);
 const INCLUDE_EXTENSIONS = new Set([
   '.ts',
   // '.mjs',
   '.json',
-  // '.md',
-  // '.yml',
-  // '.yaml',
-  // '.lua', //
 ]);
 
 const INCLUDE_FILENAMES = new Set([
@@ -45,13 +62,11 @@ const IGNORE_NAMES = new Set([
   'vitest.config.ts',
 ]);
 
-const IGNORE_PATH_PREFIXES = [
-  'test', //
-  'src/user', //
-  // 'libs/workflow/src/contracts', //
+const IGNORE_PATH_PREFIXES = ['scripts'];
 
-  'scripts',
-];
+const ignoreFile = path.join(process.cwd(), '.ignorecombine');
+
+let ignorePatterns: string[] = [];
 
 function normalize(relPath: string): string {
   return relPath.split(path.sep).join('/');
@@ -60,7 +75,37 @@ function normalize(relPath: string): string {
 function shouldIgnore(relPath: string): boolean {
   const normalized = normalize(relPath);
 
-  // 1. scoped ignore
+  for (const pattern of ignorePatterns) {
+    if (pattern.startsWith('*.')) {
+      if (normalized.endsWith(pattern.slice(1))) {
+        return true;
+      }
+      continue;
+    }
+
+    if (pattern.includes('*')) {
+      const regex = new RegExp(
+        '^' +
+          pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') +
+          '$',
+      );
+
+      if (regex.test(normalized)) {
+        return true;
+      }
+
+      continue;
+    }
+
+    if (
+      normalized === pattern ||
+      normalized.startsWith(`${pattern}/`) ||
+      normalized.split('/').includes(pattern)
+    ) {
+      return true;
+    }
+  }
+
   for (const prefix of IGNORE_PATH_PREFIXES) {
     if (
       normalized === prefix.replace(/\/$/, '') ||
@@ -70,9 +115,7 @@ function shouldIgnore(relPath: string): boolean {
     }
   }
 
-  // 2. generic ignore by segment
-  const parts = normalized.split('/');
-  return parts.some((p) => IGNORE_NAMES.has(p));
+  return normalized.split('/').some((segment) => IGNORE_NAMES.has(segment));
 }
 
 function shouldInclude(fileName: string): boolean {
@@ -90,37 +133,65 @@ function isProbablyText(content: string): boolean {
 // ---- File Walker (Iterative DFS) ----
 
 async function collectFiles(): Promise<string[]> {
-  const stack: string[] = [ROOT_DIR];
+  const stack = [...INPUTS];
   const result: string[] = [];
 
   while (stack.length) {
-    const dir = stack.pop()!;
+    const current = stack.pop()!;
 
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+    let stat;
+
+    try {
+      stat = await fs.stat(current);
+    } catch {
+      console.warn(`⚠ skipped missing path: ${current}`);
+      continue;
+    }
+
+    if (stat.isFile()) {
+      const rel = normalize(path.relative(ROOT_DIR, current));
+
+      if (!shouldIgnore(rel) && shouldInclude(path.basename(current))) {
+        result.push(current);
+      }
+
+      continue;
+    }
+
+    const entries = await fs.readdir(current, {
+      withFileTypes: true,
+    });
 
     for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const rel = path.relative(ROOT_DIR, fullPath);
+      const full = path.join(current, entry.name);
+      const rel = normalize(path.relative(ROOT_DIR, full));
 
-      if (!rel) continue;
-      if (shouldIgnore(rel)) continue;
+      if (shouldIgnore(rel)) {
+        continue;
+      }
 
       if (entry.isDirectory()) {
-        stack.push(fullPath);
-      } else if (entry.isFile()) {
-        if (shouldInclude(entry.name)) {
-          result.push(fullPath);
-        }
+        stack.push(full);
+      } else if (entry.isFile() && shouldInclude(entry.name)) {
+        result.push(full);
       }
     }
   }
 
-  return result.sort((a, b) => a.localeCompare(b));
+  return result.sort();
 }
 
 // ---- Main Processor ----
 
 async function run() {
+  try {
+    ignorePatterns = (await fs.readFile(ignoreFile, 'utf8'))
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('#'));
+  } catch {
+    // .ignorecombine is optional
+  }
   const files = await collectFiles();
 
   let part = 1;

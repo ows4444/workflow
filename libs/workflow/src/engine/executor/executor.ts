@@ -1,11 +1,3 @@
-import { WORKFLOW_TRANSACTION_RUNNER } from '@/workflow/constants/workflow.tokens';
-import { WorkflowLeaseService } from '@/workflow/infrastructure/lease/lease.service';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowExecutionResult } from '@/workflow/models/workflow-execution-result';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
-import { WorkflowLogger } from '@/workflow/observability/logger';
-import { type WorkflowTransactionRunner } from '@/workflow/ports/workflow-transaction-runner';
 import { Inject, Injectable } from '@nestjs/common';
 import { WorkflowCompletionService } from '../lifecycle/completion.service';
 import { WorkflowFailureService } from '../lifecycle/failure.service';
@@ -15,6 +7,14 @@ import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowSignalProcessor } from '../signals/signal.processor';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowRunner } from './runner';
+import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
+import { WorkflowLeaseService } from '../../infrastructure/lease/lease.service';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowExecutionResult } from '../../models/workflow-execution-result';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowSignal } from '../../models/workflow-signal';
+import { WorkflowLogger } from '../../observability/logger';
+import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 
 @Injectable()
 export class WorkflowExecutor {
@@ -129,8 +129,6 @@ export class WorkflowExecutor {
     workflowId: string,
     signal: WorkflowSignal,
   ): Promise<WorkflowExecutionResult> {
-    this.logger.signalReceived(workflowId, signal.name, signal.signalId);
-
     await this.leaseService.acquire(workflowId);
 
     try {
@@ -140,6 +138,13 @@ export class WorkflowExecutor {
         const workflow = this.registry.get(
           state.workflowName,
           state.workflowVersion,
+        );
+
+        this.logger.signalReceived(
+          workflow.metadata.name,
+          workflowId,
+          signal.name,
+          signal.signalId,
         );
 
         let finalState: WorkflowExecutionState | undefined;
@@ -154,13 +159,25 @@ export class WorkflowExecutor {
           throw error;
         }
 
-        await this.signalProcessor.complete(workflowId, signal.signalId);
+        this.transactionRunner.afterCommit?.(async () => {
+          await this.signalProcessor.complete(workflowId, signal.signalId);
 
-        this.transactionRunner.afterCommit?.(() =>
-          this.publisher.signalled(workflow, finalState),
-        );
+          await this.publisher.signalled(workflow, finalState);
+        });
 
-        return this.finalize(workflow, finalState);
+        const result = await this.finalize(workflow, finalState);
+
+        if (result.status !== 'waiting') {
+          return result;
+        }
+
+        const pending = await this.signalProcessor.pending(workflowId);
+
+        if (pending.length === 0) {
+          return result;
+        }
+
+        return this.signal(workflowId, pending[0].signal);
       });
     } finally {
       await this.leaseService.release(workflowId);

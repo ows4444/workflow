@@ -6,37 +6,42 @@ import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runn
 export class InMemoryWorkflowTransactionRunner implements WorkflowTransactionRunner {
   private readonly logger = new Logger(InMemoryWorkflowTransactionRunner.name);
 
+  private readonly activeStorage = new AsyncLocalStorage<boolean>();
+
   private readonly storage = new AsyncLocalStorage<
     Array<() => Promise<void>>
   >();
 
   async execute<T>(operation: () => Promise<T>): Promise<T> {
-    return this.storage.run([], async () => {
-      const result = await operation();
+    return this.activeStorage.run(true, () =>
+      this.storage.run([], async () => {
+        const result = await operation();
 
-      const callbacks = [...(this.storage.getStore() ?? [])];
+        const callbacks = [...(this.storage.getStore() ?? [])];
 
-      const failures: unknown[] = [];
+        const failures: unknown[] = [];
 
-      for (const callback of callbacks) {
-        try {
-          await callback();
-        } catch (error) {
-          failures.push(error);
+        for (const callback of callbacks) {
+          try {
+            await callback();
+          } catch (error) {
+            failures.push(error);
 
-          this.logger.error(
-            'Workflow afterCommit callback failed',
-            error instanceof Error ? error.stack : String(error),
+            this.logger.error(
+              'Workflow afterCommit callback failed',
+              error instanceof Error ? error.stack : String(error),
+            );
+          }
+        }
+        if (failures.length > 0) {
+          this.logger.warn(
+            `${failures.length} afterCommit callback(s) failed.`,
           );
         }
-      }
 
-      if (failures.length > 0) {
-        this.logger.warn(`${failures.length} afterCommit callback(s) failed.`);
-      }
-
-      return result;
-    });
+        return result;
+      }),
+    );
   }
 
   afterCommit(operation: () => Promise<void>): void {
@@ -52,6 +57,6 @@ export class InMemoryWorkflowTransactionRunner implements WorkflowTransactionRun
   }
 
   isActive(): boolean {
-    return this.storage.getStore() !== undefined;
+    return this.activeStorage.getStore() === true;
   }
 }

@@ -1,11 +1,3 @@
-import { WORKFLOW_TRANSACTION_RUNNER } from '@/workflow/constants/workflow.tokens';
-import { WorkflowFailureError } from '@/workflow/errors';
-import { WorkflowExecutionError } from '@/workflow/errors/workflow.errors';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowFailure } from '@/workflow/models/workflow-failure';
-import { WorkflowLogger } from '@/workflow/observability/logger';
-import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
-import { type WorkflowTransactionRunner } from '@/workflow/ports/workflow-transaction-runner';
 import { Inject, Injectable } from '@nestjs/common';
 import { WorkflowCompensationService } from '../compensation/service';
 import { WorkflowRegistry } from '../registry/registry';
@@ -13,6 +5,14 @@ import { WorkflowRetryService } from '../retry/retry.service';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowLifecyclePublisher } from './lifecycle.publisher';
+import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
+import { WorkflowFailureError } from '../../errors';
+import { WorkflowExecutionError } from '../../errors/workflow.errors';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowFailure } from '../../models/workflow-failure';
+import { WorkflowLogger } from '../../observability/logger';
+import { WorkflowHistoryService } from '../../persistence/history.service';
+import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 
 @Injectable()
 export class WorkflowFailureService {
@@ -110,18 +110,19 @@ export class WorkflowFailureService {
       latest.workflowVersion,
     );
 
-    this.transactionRunner.afterCommit?.(() =>
-      this.publisher.failed(workflow, latest),
-    );
+    this.transactionRunner.afterCommit?.(async () => {
+      await this.publisher.failed(workflow, latest);
 
-    const retry = workflow.metadata.retries;
+      const retry = workflow.metadata.retries;
 
-    if (retry && this.retryService.canRetry(latest, retry.maxAttempts)) {
-      await this.retryService.retry(latest, retry);
-      return;
-    }
-    if (workflow.metadata.compensation?.enabled) {
-      await this.compensation.compensate(workflow, latest);
-    }
+      if (retry && this.retryService.canRetry(latest, retry.maxAttempts)) {
+        await this.retryService.retry(latest, retry);
+        return;
+      }
+
+      if (workflow.metadata.compensation?.enabled) {
+        await this.compensation.compensate(workflow, latest);
+      }
+    });
   }
 }

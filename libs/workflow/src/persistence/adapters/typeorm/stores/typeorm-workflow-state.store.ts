@@ -1,7 +1,3 @@
-import { WorkflowConcurrencyError } from '@/workflow/errors/workflow.errors';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowStateStore } from '@/workflow/ports/workflow-state-store';
-import { WorkflowStatus } from '@/workflow/types/workflow-status';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -16,6 +12,10 @@ import { WorkflowStateEntity } from '../entities/workflow-state.entity';
 import { WorkflowStateMapper } from '../mappers/workflow-state.mapper';
 import { isDuplicateKeyError } from '../utils/is-duplicate-query-error';
 import { TypeOrmWorkflowTransactionContext } from './typeorm-workflow-transaction-context';
+import { WorkflowConcurrencyError } from '../../../../errors/workflow.errors';
+import { WorkflowExecutionState } from '../../../../models/workflow-execution-state';
+import { WorkflowStateStore } from '../../../../ports/workflow-state-store';
+import { WorkflowStatus } from '../../../../types/workflow-status';
 
 @Injectable()
 export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
@@ -105,6 +105,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
 
   async findRecoverable(
     readyAt = new Date(),
+    limit?: number,
   ): Promise<WorkflowExecutionState[]> {
     return this.repository
       .find({
@@ -112,16 +113,21 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
           { requiresRecovery: true, retryAt: IsNull() },
           { requiresRecovery: true, retryAt: LessThanOrEqual(readyAt) },
         ],
+        take: limit,
       })
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 
-  async findStuck(olderThanMs: number): Promise<WorkflowExecutionState[]> {
+  async findStuck(
+    olderThanMs: number,
+    limit?: number,
+  ): Promise<WorkflowExecutionState[]> {
     const threshold = new Date(Date.now() - olderThanMs);
 
     return this.repository
       .find({
         where: { status: 'running', stepStartedAt: LessThan(threshold) },
+        take: limit,
       })
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
@@ -150,11 +156,15 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
 
   async findWaitingExpired(
     olderThanMs: number,
+    limit?: number,
   ): Promise<WorkflowExecutionState[]> {
     const threshold = new Date(Date.now() - olderThanMs);
 
     return this.repository
-      .find({ where: { status: 'waiting', updatedAt: LessThan(threshold) } })
+      .find({
+        where: { status: 'waiting', updatedAt: LessThan(threshold) },
+        take: limit,
+      })
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 
@@ -199,7 +209,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
 
     const qb = this.repository
       .createQueryBuilder('w')
-      .select('w.id', 'id')
+      .select('w.workflowId', 'workflowId')
       .where('w.status = :status', { status: 'completed' })
       .andWhere('w.completedAt < :threshold', { threshold });
 
@@ -219,7 +229,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
       qb.take(limit);
     }
 
-    const ids = await qb.getRawMany<{ id: string }>();
+    const ids = await qb.getRawMany<{ workflowId: string }>();
 
     if (ids.length === 0) {
       return 0;
@@ -228,7 +238,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     const result = await this.repository
       .createQueryBuilder()
       .delete()
-      .whereInIds(ids.map((x) => x.id))
+      .whereInIds(ids.map((x) => x.workflowId))
       .execute();
 
     return result.affected ?? 0;
@@ -238,6 +248,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     workflowName?: string,
     workflowVersion?: number,
     olderThanMs = 0,
+    limit?: number,
   ): Promise<WorkflowExecutionState[]> {
     const threshold = new Date(Date.now() - olderThanMs);
 
@@ -255,7 +266,7 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
     }
 
     return this.repository
-      .find({ where })
+      .find({ where, take: limit })
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 
 @Injectable()
 export class WorkflowStateValidator {
@@ -20,14 +20,16 @@ export class WorkflowStateValidator {
           );
         }
 
-        if (state.requiresRecovery) {
-          break;
-        }
-
         if (
           state.executingStep !== undefined &&
           state.stepStartedAt === undefined
         ) {
+          if (!state.requiresRecovery) {
+            throw new WorkflowExecutionError(
+              `Running workflow '${state.workflowId}' has executingStep without stepStartedAt`,
+            );
+          }
+
           throw new WorkflowExecutionError(
             `Running workflow '${state.workflowId}' has executingStep without stepStartedAt`,
           );
@@ -37,6 +39,11 @@ export class WorkflowStateValidator {
           state.stepStartedAt !== undefined &&
           state.executingStep === undefined
         ) {
+          if (!state.requiresRecovery) {
+            throw new WorkflowExecutionError(
+              `Running workflow '${state.workflowId}' has stepStartedAt without executingStep`,
+            );
+          }
           throw new WorkflowExecutionError(
             `Running workflow '${state.workflowId}' has stepStartedAt without executingStep`,
           );

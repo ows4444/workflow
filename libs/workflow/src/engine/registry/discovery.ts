@@ -7,16 +7,16 @@ import {
   WORKFLOW_SIGNAL_METADATA,
 } from '../../constants/workflow.constants';
 import { WORKFLOW_STEP_METADATA } from '../../constants/workflow.constants';
-import { WorkflowMetadata } from '@/workflow/definition/workflow-metadata';
-import { WorkflowStepMetadata } from '@/workflow/definition/workflow-step-metadata';
-import { WorkflowConfigurationError } from '@/workflow/errors/workflow.errors';
-import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
-import { RegisteredWorkflowStep } from '@/workflow/models/registered-workflow';
-import { WorkflowStepId } from '@/workflow/models/workflow-step-id';
 import { WorkflowHookMetadata } from '../hooks/hook.metadata';
 import { WorkflowSignalMetadata } from '../signals/signal.metadata';
 import { WorkflowDefinitionValidator } from '../validation/definition.validator';
 import { WorkflowRegistry } from './registry';
+import { WorkflowMetadata } from '../../definition/workflow-metadata';
+import { WorkflowStepMetadata } from '../../definition/workflow-step-metadata';
+import { WorkflowConfigurationError } from '../../errors/workflow.errors';
+import { WorkflowStepHandler } from '../../handlers/workflow-step-handler';
+import { RegisteredWorkflowStep } from '../../models/registered-workflow';
+import { WorkflowStepId } from '../../models/workflow-step-id';
 
 interface MutableRegisteredWorkflow {
   readonly metadata: WorkflowMetadata;
@@ -140,6 +140,19 @@ export class WorkflowDiscovery implements OnModuleInit {
 
     for (const workflow of workflows.values()) {
       this.validator.validate(workflow);
+
+      for (const child of workflow.metadata.childWorkflows ?? []) {
+        const registered = [...workflows.values()].some(
+          (candidate) => candidate.workflowType === child.workflow,
+        );
+
+        if (!registered) {
+          throw new WorkflowConfigurationError(
+            `Workflow '${workflow.metadata.name}' references unregistered child workflow '${child.workflow.name}'.`,
+          );
+        }
+      }
+
       const transitions = new Map<
         WorkflowStepId,
         ReadonlySet<WorkflowStepId>

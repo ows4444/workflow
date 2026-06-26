@@ -1,18 +1,18 @@
-import {
-  WORKFLOW_IDEMPOTENCY_STORE,
-  WORKFLOW_TRANSACTION_RUNNER,
-} from '@/workflow/constants/workflow.tokens';
-import { WorkflowExecutionError } from '@/workflow/errors/workflow.errors';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
-import { type WorkflowIdempotencyStore } from '@/workflow/ports/workflow-idempotency-store';
-import { type WorkflowTransactionRunner } from '@/workflow/ports/workflow-transaction-runner';
-import { buildSignalIdempotencyKey } from '@/workflow/shared/utils/workflow-idempotency-key';
 import { Inject, Injectable } from '@nestjs/common';
 import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowSignalService } from './signal.service';
+import {
+  WORKFLOW_IDEMPOTENCY_STORE,
+  WORKFLOW_TRANSACTION_RUNNER,
+} from '../../constants/workflow.tokens';
+import { WorkflowExecutionError } from '../../errors/workflow.errors';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowSignal } from '../../models/workflow-signal';
+import { type WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
+import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { buildSignalIdempotencyKey } from '../../shared/utils/workflow-idempotency-key';
 
 @Injectable()
 export class WorkflowSignalProcessor {
@@ -109,5 +109,9 @@ export class WorkflowSignalProcessor {
       buildSignalIdempotencyKey(workflowId, signalId),
       workflowId,
     );
+  }
+
+  async pending(workflowId: string) {
+    return this.signals.pending(workflowId);
   }
 }

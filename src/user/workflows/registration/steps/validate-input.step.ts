@@ -1,4 +1,8 @@
-import { NonRetriableWorkflowError } from '@/workflow/errors';
+import { NonRetriableWorkflowError } from '../../../../../libs/workflow/src/errors';
+import { WorkflowStepHandler } from '../../../../../libs/workflow/src/handlers/workflow-step-handler';
+import { WorkflowStepResult } from '../../../../../libs/workflow/src/models/workflow-step-result';
+import { Step } from '../../../../../libs/workflow/src/steps/step.decorator';
+import { WorkflowContext } from '../../../../../libs/workflow/src/types/workflow-context';
 import {
   REGISTRATION_STEPS,
   REGISTRATION_VERSION,
@@ -6,10 +10,6 @@ import {
 } from '../registration.constants';
 
 import { type RegistrationState } from '../registration.state';
-import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
-import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
-import { Step } from '@/workflow/steps/step.decorator';
-import { WorkflowContext } from '@/workflow/types/workflow-context';
 
 @Step({
   workflow: REGISTRATION_WORKFLOW,

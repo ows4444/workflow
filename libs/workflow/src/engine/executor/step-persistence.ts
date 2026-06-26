@@ -2,12 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowStepExecution } from '@/workflow/models/workflow-step-execution';
-import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
-import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowStateTransitions } from '../state/transitions';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowStepExecution } from '../../models/workflow-step-execution';
+import { WorkflowStepResult } from '../../models/workflow-step-result';
+import { WorkflowHistoryService } from '../../persistence/history.service';
 
 @Injectable()
 export class WorkflowStepPersistenceService {
@@ -25,19 +25,17 @@ export class WorkflowStepPersistenceService {
     execution: WorkflowStepExecution,
     result: WorkflowStepResult,
   ): Promise<WorkflowExecutionState> {
-    return this.transactionRunner.execute(async () => {
-      await this.history.append(previous.workflowId, execution);
+    await this.history.append(previous.workflowId, execution);
 
-      const next = this.transitions.completeStep(
-        previous,
-        execution,
-        result.nextStep,
-        result.waitForSignal,
-        result.data,
-      );
+    const next = this.transitions.completeStep(
+      previous,
+      execution,
+      result.nextStep,
+      result.waitForSignal,
+      result.data,
+    );
 
-      return this.stateService.save(previous, next);
-    });
+    return this.stateService.save(previous, next);
   }
 
   async appendRetry(

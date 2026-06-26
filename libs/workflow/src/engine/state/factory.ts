@@ -1,7 +1,7 @@
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 
 @Injectable()
 export class WorkflowStateFactory {

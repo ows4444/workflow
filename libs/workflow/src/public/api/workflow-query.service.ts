@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
-import { WorkflowSignalService } from '@/workflow/engine/signals/signal.service';
-import { WorkflowStateService } from '@/workflow/engine/state/service';
-import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
-import { WorkflowDetails } from '@/workflow/types/workflow-details';
+import { WorkflowSignalService } from '../../engine/signals/signal.service';
+import { WorkflowStateService } from '../../engine/state/service';
+import { WorkflowHistoryService } from '../../persistence/history.service';
+import { WorkflowDetails } from '../../types/workflow-details';
 
 @Injectable()
 export class WorkflowQueryService {

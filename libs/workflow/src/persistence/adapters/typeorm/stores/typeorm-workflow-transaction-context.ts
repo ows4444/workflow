@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { WorkflowTransactionContext } from '@/workflow/context/workflow-transaction-context';
+import { WorkflowTransactionContext } from '../../../../context/workflow-transaction-context';
 
 @Injectable()
 export class TypeOrmWorkflowTransactionContext implements WorkflowTransactionContext {

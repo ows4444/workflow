@@ -1,9 +1,9 @@
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowFailure } from '@/workflow/models/workflow-failure';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
-import { WorkflowStepExecution } from '@/workflow/models/workflow-step-execution';
-import { WorkflowStepId } from '@/workflow/models/workflow-step-id';
 import { Injectable } from '@nestjs/common';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowFailure } from '../../models/workflow-failure';
+import { WorkflowSignal } from '../../models/workflow-signal';
+import { WorkflowStepExecution } from '../../models/workflow-step-execution';
+import { WorkflowStepId } from '../../models/workflow-step-id';
 
 @Injectable()
 export class WorkflowStateTransitions {
@@ -87,6 +87,7 @@ export class WorkflowStateTransitions {
     return this.touch({
       ...state,
       status: 'failed',
+      stepRetryCount: 0,
       executingStep: undefined,
       waitingForSignal: undefined,
       waitingSince: undefined,
@@ -118,6 +119,7 @@ export class WorkflowStateTransitions {
   ): WorkflowExecutionState {
     return this.touch({
       ...state,
+      stepRetryCount: 0,
       requiresRecovery: true,
       recoveryReason: reason,
       recoveryAttempts: (state.recoveryAttempts ?? 0) + 1,

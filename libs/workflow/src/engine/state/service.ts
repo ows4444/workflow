@@ -5,18 +5,20 @@ import {
   WORKFLOW_STATE_STORE,
   WORKFLOW_TRANSACTION_RUNNER,
 } from '../../constants/workflow.tokens';
-import { WorkflowExecutionError } from '@/workflow/errors/workflow.errors';
-import { WorkflowLeaseService } from '@/workflow/infrastructure/lease/lease.service';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
-import { type WorkflowIdempotencyStore } from '@/workflow/ports/workflow-idempotency-store';
-import { type WorkflowStateStore } from '@/workflow/ports/workflow-state-store';
-import { type WorkflowTransactionRunner } from '@/workflow/ports/workflow-transaction-runner';
+
 import { WorkflowLifecyclePublisher } from '../lifecycle/lifecycle.publisher';
 import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowSignalService } from '../signals/signal.service';
 import { WorkflowStateTransitions } from './transitions';
 import { WorkflowStateValidator } from './validator';
+import { WorkflowExecutionError } from '../../errors/workflow.errors';
+import { WorkflowLeaseService } from '../../infrastructure/lease/lease.service';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowLogger } from '../../observability/logger';
+import { WorkflowHistoryService } from '../../persistence/history.service';
+import { type WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
+import { type WorkflowStateStore } from '../../ports/workflow-state-store';
+import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 
 @Injectable()
 export class WorkflowStateService {
@@ -27,6 +29,7 @@ export class WorkflowStateService {
     private readonly validator: WorkflowStateValidator,
     private readonly registry: WorkflowRegistry,
     private readonly publisher: WorkflowLifecyclePublisher,
+    private readonly logger: WorkflowLogger,
     private readonly transitions: WorkflowStateTransitions,
 
     private readonly history: WorkflowHistoryService,
@@ -92,6 +95,8 @@ export class WorkflowStateService {
     const cancelled = this.transitions.cancelWorkflow(state);
 
     const persisted = await this.save(state, cancelled);
+
+    this.logger.cancelled(persisted);
 
     const workflow = this.registry.get(
       persisted.workflowName,

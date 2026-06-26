@@ -1,9 +1,9 @@
-import { WORKFLOW_METRICS } from '@/workflow/constants/workflow.tokens';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowHook } from '@/workflow/models/workflow-hook';
-import { type WorkflowMetrics } from '@/workflow/models/workflow-metrics';
 import { Inject, Injectable, Logger, Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { WORKFLOW_METRICS } from '../../constants/workflow.tokens';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowHook } from '../../models/workflow-hook';
+import { type WorkflowMetrics } from '../../models/workflow-metrics';
 
 @Injectable()
 export class WorkflowHookExecutor {

@@ -1,7 +1,6 @@
 import { Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
-import { RetriableWorkflowError } from '@/workflow/errors';
 import { EmailService } from '../../../infrastructure/mail/email.service';
 import {
   REGISTRATION_SIGNALS,
@@ -10,10 +9,11 @@ import {
   REGISTRATION_WORKFLOW,
 } from '../registration.constants';
 import { RegistrationState } from '../registration.state';
-import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
-import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
-import { Step } from '@/workflow/steps/step.decorator';
-import { WorkflowContext } from '@/workflow/types/workflow-context';
+import { RetriableWorkflowError } from '../../../../../libs/workflow/src/errors';
+import { WorkflowStepHandler } from '../../../../../libs/workflow/src/handlers/workflow-step-handler';
+import { WorkflowStepResult } from '../../../../../libs/workflow/src/models/workflow-step-result';
+import { Step } from '../../../../../libs/workflow/src/steps/step.decorator';
+import { WorkflowContext } from '../../../../../libs/workflow/src/types/workflow-context';
 
 @Step({
   workflow: REGISTRATION_WORKFLOW,

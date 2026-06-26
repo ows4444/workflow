@@ -1,8 +1,8 @@
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { WorkflowStepResolver } from '../executor/step-resolver';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowHistoryService } from '../../persistence/history.service';
 
 @Injectable()
 export class WorkflowCompensationService {

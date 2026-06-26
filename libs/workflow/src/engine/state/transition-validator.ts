@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowStepId } from '@/workflow/models/workflow-step-id';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowStepId } from '../../models/workflow-step-id';
 
 @Injectable()
 export class WorkflowTransitionValidator {

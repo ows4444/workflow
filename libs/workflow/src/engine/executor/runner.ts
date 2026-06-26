@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
 
 import { DEFAULT_MAX_WORKFLOW_ITERATIONS } from '../../constants/workflow.constants';
-import {
-  WorkflowConcurrencyError,
-  WorkflowExecutionError,
-} from '@/workflow/errors/workflow.errors';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
-import { WorkflowLogger } from '@/workflow/observability/logger';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowTransitionValidator } from '../state/transition-validator';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowStepExecutor } from './step-executor';
 import { WorkflowStepPersistenceService } from './step-persistence';
+import {
+  WorkflowConcurrencyError,
+  WorkflowExecutionError,
+} from '../../errors/workflow.errors';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowSignal } from '../../models/workflow-signal';
+import { WorkflowLogger } from '../../observability/logger';
 
 @Injectable()
 export class WorkflowRunner {
@@ -112,18 +112,20 @@ export class WorkflowRunner {
 
       const completedAt = new Date();
 
+      const stepExecution = {
+        step: currentStep,
+        startedAt,
+        completedAt,
+        durationMs: completedAt.getTime() - startedAt.getTime(),
+        status: 'completed' as const,
+      };
+
       state = await this.stepPersistence.completeStep(
         state,
-        {
-          step: currentStep,
-          startedAt,
-          completedAt,
-          durationMs: completedAt.getTime() - startedAt.getTime(),
-          status: 'completed',
-        },
+        stepExecution,
         execution.result,
       );
-      this.logger.stepCompleted(state);
+      this.logger.stepCompleted(state, stepExecution);
 
       if (execution.result.waitForSignal) {
         break;

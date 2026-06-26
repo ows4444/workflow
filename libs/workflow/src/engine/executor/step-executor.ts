@@ -1,18 +1,3 @@
-import { DEFAULT_STEP_TIMEOUT_MS } from '@/workflow/constants/workflow.constants';
-import {
-  WORKFLOW_RETRY_JITTER,
-  WORKFLOW_RETRY_SCHEDULER,
-} from '@/workflow/constants/workflow.tokens';
-import { WorkflowFailureError } from '@/workflow/errors';
-import { WorkflowExecutionError } from '@/workflow/errors/workflow.errors';
-import { WorkflowLeaseService } from '@/workflow/infrastructure/lease/lease.service';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { type WorkflowRetryJitter } from '@/workflow/models/workflow-retry-jitter';
-import { type WorkflowRetryScheduler } from '@/workflow/models/workflow-retry-scheduler';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
-import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
-import { WorkflowContext } from '@/workflow/types/workflow-context';
 import { Inject, Injectable } from '@nestjs/common';
 import { WorkflowRetryDelayService } from '../retry/delay.service';
 import { WorkflowStateService } from '../state/service';
@@ -20,10 +5,37 @@ import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowStepResultValidator } from '../validation/step-result.validator';
 import { WorkflowStepPersistenceService } from './step-persistence';
 import { WorkflowStepResolver } from './step-resolver';
+import { DEFAULT_STEP_TIMEOUT_MS } from '../../constants/workflow.constants';
+import {
+  WORKFLOW_RETRY_JITTER,
+  WORKFLOW_RETRY_SCHEDULER,
+} from '../../constants/workflow.tokens';
+import { WorkflowFailureError } from '../../errors';
+import { WorkflowExecutionError } from '../../errors/workflow.errors';
+import { WorkflowLeaseService } from '../../infrastructure/lease/lease.service';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { type WorkflowRetryJitter } from '../../models/workflow-retry-jitter';
+import { type WorkflowRetryScheduler } from '../../models/workflow-retry-scheduler';
+import { WorkflowSignal } from '../../models/workflow-signal';
+import { WorkflowStepResult } from '../../models/workflow-step-result';
+import { WorkflowContext } from '../../types/workflow-context';
 
 interface RetryExecutionResult<T> {
   readonly result: T;
   readonly latestState: WorkflowExecutionState;
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      deepFreeze(child);
+    }
+  }
+
+  return value;
 }
 
 @Injectable()
@@ -69,7 +81,7 @@ export class WorkflowStepExecutor {
         workflowName: state.workflowName,
         currentStep: state.currentStep,
 
-        data: state.data,
+        data: deepFreeze(structuredClone(state.data)),
         signal,
         runtime: {
           abortSignal,

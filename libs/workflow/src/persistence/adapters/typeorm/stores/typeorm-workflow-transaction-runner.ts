@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { DataSource } from 'typeorm';
 import { Logger } from '@nestjs/common';
 import { TypeOrmWorkflowTransactionContext } from './typeorm-workflow-transaction-context';
-import { WorkflowTransactionRunner } from '@/workflow/ports/workflow-transaction-runner';
+import { WorkflowTransactionRunner } from '../../../../ports/workflow-transaction-runner';
 
 @Injectable()
 export class TypeOrmWorkflowTransactionRunner implements WorkflowTransactionRunner {
@@ -65,6 +65,6 @@ export class TypeOrmWorkflowTransactionRunner implements WorkflowTransactionRunn
   }
 
   isActive(): boolean {
-    return this.storage.getStore() !== undefined;
+    return this.context.get() !== undefined;
   }
 }

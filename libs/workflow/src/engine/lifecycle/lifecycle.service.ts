@@ -1,15 +1,15 @@
-import { WORKFLOW_TRANSACTION_RUNNER } from '@/workflow/constants/workflow.tokens';
-import { WorkflowExecutionError } from '@/workflow/errors/workflow.errors';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowLogger } from '@/workflow/observability/logger';
-import { type WorkflowTransactionRunner } from '@/workflow/ports/workflow-transaction-runner';
 import { Inject, Injectable } from '@nestjs/common';
 import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowStateFactory } from '../state/factory';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowLifecyclePublisher } from './lifecycle.publisher';
+import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
+import { WorkflowExecutionError } from '../../errors/workflow.errors';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowLogger } from '../../observability/logger';
+import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 
 @Injectable()
 export class WorkflowLifecycleService {

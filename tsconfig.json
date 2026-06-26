@@ -5,10 +5,7 @@
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
-    "types": [
-      "node",
-      "jest"
-    ],
+    "types": ["node", "jest"],
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -26,12 +23,8 @@
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/workflow": [
-        "libs/workflow/src"
-      ],
-      "@/workflow/*": [
-        "libs/workflow/src/*"
-      ]
+      "@/workflow": ["libs/workflow/src"],
+      "@/workflow/*": ["libs/workflow/src/*"]
     }
   }
 }

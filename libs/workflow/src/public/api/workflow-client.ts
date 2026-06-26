@@ -1,9 +1,9 @@
-import { WorkflowExecutor } from '@/workflow/engine/executor/executor';
-import { WorkflowExecutionResult } from '@/workflow/models/workflow-execution-result';
-import { WorkflowSignal } from '@/workflow/models/workflow-signal';
-import { WorkflowDetails } from '@/workflow/types/workflow-details';
 import { Injectable } from '@nestjs/common';
 import { WorkflowQueryService } from './workflow-query.service';
+import { WorkflowExecutor } from '../../engine/executor/executor';
+import { WorkflowExecutionResult } from '../../models/workflow-execution-result';
+import { WorkflowSignal } from '../../models/workflow-signal';
+import { WorkflowDetails } from '../../types/workflow-details';
 
 @Injectable()
 export class WorkflowClient {

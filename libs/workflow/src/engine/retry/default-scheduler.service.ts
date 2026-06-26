@@ -1,5 +1,5 @@
-import { WorkflowRetryScheduler } from '@/workflow/models/workflow-retry-scheduler';
 import { Injectable } from '@nestjs/common';
+import { WorkflowRetryScheduler } from '../../models/workflow-retry-scheduler';
 
 @Injectable()
 export class DefaultWorkflowRetryScheduler implements WorkflowRetryScheduler {

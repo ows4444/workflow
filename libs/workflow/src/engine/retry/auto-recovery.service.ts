@@ -1,19 +1,46 @@
-import { DEFAULT_STUCK_THRESHOLD_MS } from '@/workflow/constants/workflow.constants';
-import { Injectable } from '@nestjs/common';
-import { Interval } from '@nestjs/schedule';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { WorkflowExecutor } from '../executor/executor';
 import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowRecoveryService } from './recovery.service';
+import { DEFAULT_STUCK_THRESHOLD_MS } from '../../constants/workflow.constants';
 
 @Injectable()
-export class WorkflowAutoRecoveryService {
+export class WorkflowAutoRecoveryService
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly timerName = 'workflow-auto-recovery';
+
   constructor(
     private readonly recovery: WorkflowRecoveryService,
     private readonly executor: WorkflowExecutor,
     private readonly registry: WorkflowRegistry,
+    private readonly scheduler: SchedulerRegistry,
   ) {}
 
-  @Interval(30000)
+  onModuleInit(): void {
+    const intervals = this.registry
+      .getAll()
+      .map((w) => w.metadata.autoResume?.intervalMs)
+      .filter((x): x is number => x !== undefined);
+
+    const interval = intervals.length > 0 ? Math.min(...intervals) : 30_000;
+
+    const timer = setInterval(() => {
+      void this.recover();
+    }, interval);
+
+    this.scheduler.addInterval(this.timerName, timer);
+  }
+
+  onModuleDestroy(): void {
+    try {
+      this.scheduler.deleteInterval(this.timerName);
+    } catch {
+      // Interval was never registered.
+    }
+  }
+
   async recover(): Promise<void> {
     const workflows = this.registry.getAll();
 
@@ -45,6 +72,15 @@ export class WorkflowAutoRecoveryService {
       );
 
       if (definition?.metadata.autoResume?.enabled === false) {
+        continue;
+      }
+
+      const maxAttempts = definition?.metadata.autoResume?.maxAttempts;
+
+      if (
+        maxAttempts !== undefined &&
+        (workflow.recoveryAttempts ?? 0) >= maxAttempts
+      ) {
         continue;
       }
 

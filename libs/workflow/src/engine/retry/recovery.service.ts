@@ -6,8 +6,8 @@ import { WORKFLOW_STATE_STORE } from '../../constants/workflow.tokens';
 import { type WorkflowStateStore } from '../../ports/workflow-state-store';
 
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
 import { WorkflowStateTransitions } from '../state/transitions';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 
 @Injectable()
 export class WorkflowRecoveryService {
@@ -51,7 +51,7 @@ export class WorkflowRecoveryService {
       return;
     }
 
-    const next = this.transitions.markRecoverable(state, 'process-crash');
+    const next = this.transitions.markRecoverable(state, 'timeout');
 
     await this.store.save(state, next);
   }

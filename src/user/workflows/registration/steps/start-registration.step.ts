@@ -1,8 +1,8 @@
-import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
-import { createWorkflowStepId } from '@/workflow/models/workflow-step-id';
-import { WorkflowStepResult } from '@/workflow/models/workflow-step-result';
-import { Step } from '@/workflow/steps/step.decorator';
-import { WorkflowContext } from '@/workflow/types/workflow-context';
+import { WorkflowStepHandler } from '../../../../../libs/workflow/src/handlers/workflow-step-handler';
+import { createWorkflowStepId } from '../../../../../libs/workflow/src/models/workflow-step-id';
+import { WorkflowStepResult } from '../../../../../libs/workflow/src/models/workflow-step-result';
+import { Step } from '../../../../../libs/workflow/src/steps/step.decorator';
+import { WorkflowContext } from '../../../../../libs/workflow/src/types/workflow-context';
 
 @Step({
   workflow: 'user-registration',

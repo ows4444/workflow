@@ -1,10 +1,10 @@
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
-import { WorkflowLogger } from '@/workflow/observability/logger';
 import { Injectable } from '@nestjs/common';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowRetryDelayService } from './delay.service';
 import { WorkflowRetryMetadata } from './retry.metadata';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowLogger } from '../../observability/logger';
 
 @Injectable()
 export class WorkflowRetryService {
@@ -34,7 +34,7 @@ export class WorkflowRetryService {
     const delay = this.retryDelay.compute(retry, (state.failureCount ?? 0) + 1);
 
     const next = this.transitions.markRecoverable(
-      this.transitions.incrementStepRetry(state),
+      state,
       'unknown',
       new Date(Date.now() + delay),
     );

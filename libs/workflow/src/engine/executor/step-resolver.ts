@@ -1,7 +1,7 @@
-import { WorkflowCompensationHandler } from '@/workflow/handlers/workflow-compensation-handler';
-import { WorkflowStepHandler } from '@/workflow/handlers/workflow-step-handler';
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { WorkflowCompensationHandler } from '../../handlers/workflow-compensation-handler';
+import { WorkflowStepHandler } from '../../handlers/workflow-step-handler';
 
 @Injectable()
 export class WorkflowStepResolver {

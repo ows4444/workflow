@@ -1,5 +1,5 @@
-import { WorkflowHook } from '@/workflow/models/workflow-hook';
 import { Type } from '@nestjs/common';
+import { WorkflowHook } from '../../models/workflow-hook';
 
 export interface WorkflowHookMetadata {
   readonly onStart?: Type<WorkflowHook>;

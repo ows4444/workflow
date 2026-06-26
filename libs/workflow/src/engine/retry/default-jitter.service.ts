@@ -1,5 +1,5 @@
-import { WorkflowRetryJitter } from '@/workflow/models/workflow-retry-jitter';
 import { Injectable } from '@nestjs/common';
+import { WorkflowRetryJitter } from '../../models/workflow-retry-jitter';
 
 @Injectable()
 export class DefaultWorkflowRetryJitterService implements WorkflowRetryJitter {
