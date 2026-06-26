@@ -17,6 +17,14 @@ export class TypeOrmWorkflowTransactionRunner implements WorkflowTransactionRunn
     private readonly context: TypeOrmWorkflowTransactionContext,
   ) {}
 
+  executeOrJoin<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.isActive()) {
+      return operation();
+    }
+
+    return this.execute(operation);
+  }
+
   execute<T>(operation: () => Promise<T>): Promise<T> {
     if (this.isActive()) {
       return operation();

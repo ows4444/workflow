@@ -13,6 +13,12 @@ export class WorkflowStateEntity {
   @PrimaryColumn()
   workflowId!: string;
 
+  @Column({ nullable: true })
+  parentWorkflowId?: string;
+
+  @Column({ nullable: true })
+  parentExecutionId?: string;
+
   @Column()
   executionId!: string;
 

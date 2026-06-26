@@ -37,6 +37,14 @@ export class WorkflowQueryService {
     return (await this.stateService.load(workflowId)) !== null;
   }
 
+  active(workflowName?: string) {
+    return this.stateService.findActive(workflowName);
+  }
+
+  correlation(correlationId: string) {
+    return this.stateService.findByCorrelationId(correlationId);
+  }
+
   async running() {
     return this.stateService.findRunning();
   }

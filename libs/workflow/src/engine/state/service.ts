@@ -19,6 +19,7 @@ import { WorkflowHistoryService } from '../../persistence/history.service';
 import { type WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
 import { type WorkflowStateStore } from '../../ports/workflow-state-store';
 import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { ChildWorkflowService } from '../children/child-workflow.service';
 
 @Injectable()
 export class WorkflowStateService {
@@ -29,6 +30,7 @@ export class WorkflowStateService {
     private readonly validator: WorkflowStateValidator,
     private readonly registry: WorkflowRegistry,
     private readonly publisher: WorkflowLifecyclePublisher,
+    private readonly children: ChildWorkflowService,
     private readonly logger: WorkflowLogger,
     private readonly transitions: WorkflowStateTransitions,
 
@@ -43,14 +45,28 @@ export class WorkflowStateService {
     private readonly transactionRunner: WorkflowTransactionRunner,
   ) {}
 
+  async isCancelled(workflowId: string): Promise<boolean> {
+    const state = await this.load(workflowId);
+
+    return state?.status === 'cancelled' || state?.status === 'failed';
+  }
+
   async insert(state: WorkflowExecutionState): Promise<void> {
     this.validator.validate(state);
 
-    if (this.transactionRunner.isActive?.()) {
-      return this.store.insert(state);
-    }
+    return this.transactionRunner.executeOrJoin!(() =>
+      this.store.insert(state),
+    );
+  }
 
-    return this.transactionRunner.execute(() => this.store.insert(state));
+  async findByCorrelationId(
+    correlationId: string,
+  ): Promise<WorkflowExecutionState[]> {
+    return this.store.findByCorrelationId(correlationId);
+  }
+
+  async findActive(workflowName?: string): Promise<WorkflowExecutionState[]> {
+    return this.store.findActive(workflowName);
   }
 
   async load(workflowId: string): Promise<WorkflowExecutionState | null> {
@@ -73,11 +89,7 @@ export class WorkflowStateService {
     workflowId: string,
     expired = false,
   ): Promise<WorkflowExecutionState> {
-    if (this.transactionRunner.isActive?.()) {
-      return this.cancelInternal(workflowId, expired);
-    }
-
-    return this.transactionRunner.execute(() =>
+    return this.transactionRunner.executeOrJoin!(() =>
       this.cancelInternal(workflowId, expired),
     );
   }
@@ -103,11 +115,13 @@ export class WorkflowStateService {
       persisted.workflowVersion,
     );
 
-    this.transactionRunner.afterCommit?.(() =>
-      expired
+    this.transactionRunner.afterCommit?.(async () => {
+      await (expired
         ? this.publisher.expired(workflow, persisted)
-        : this.publisher.cancelled(workflow, persisted),
-    );
+        : this.publisher.cancelled(workflow, persisted));
+
+      await this.children.cancelChildren(workflow, persisted);
+    });
 
     return persisted;
   }
@@ -150,6 +164,12 @@ export class WorkflowStateService {
     return this.transactionRunner.execute(() =>
       this.store.save(previous, versioned),
     );
+  }
+
+  async findByParentWorkflowId(
+    parentWorkflowId: string,
+  ): Promise<WorkflowExecutionState[]> {
+    return (await this.store.findByParentWorkflowId?.(parentWorkflowId)) ?? [];
   }
 
   async delete(workflowId: string): Promise<void> {

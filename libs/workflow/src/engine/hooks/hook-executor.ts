@@ -4,6 +4,7 @@ import { WORKFLOW_METRICS } from '../../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowHook } from '../../models/workflow-hook';
 import { type WorkflowMetrics } from '../../models/workflow-metrics';
+import { WorkflowRegistry } from '../registry/registry';
 
 @Injectable()
 export class WorkflowHookExecutor {
@@ -12,12 +13,23 @@ export class WorkflowHookExecutor {
     private readonly moduleRef: ModuleRef,
     @Inject(WORKFLOW_METRICS)
     private readonly metrics: WorkflowMetrics,
+
+    private readonly registry: WorkflowRegistry,
   ) {}
 
   async execute(
     state: WorkflowExecutionState,
     hook?: Type<WorkflowHook>,
   ): Promise<void> {
+    const workflow = this.registry.get(
+      state.workflowName,
+      state.workflowVersion,
+    );
+
+    if (workflow.metadata.observability?.audit === false) {
+      return;
+    }
+
     if (!hook) {
       return;
     }

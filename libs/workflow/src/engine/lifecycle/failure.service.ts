@@ -11,13 +11,14 @@ import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowFailure } from '../../models/workflow-failure';
 import { WorkflowLogger } from '../../observability/logger';
-import { WorkflowHistoryService } from '../../persistence/history.service';
 import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowStepPersistenceService } from '../executor/step-persistence';
+import { ChildWorkflowService } from '../children/child-workflow.service';
 
 @Injectable()
 export class WorkflowFailureService {
   constructor(
-    private readonly history: WorkflowHistoryService,
+    private readonly persistence: WorkflowStepPersistenceService,
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
     private readonly retryService: WorkflowRetryService,
@@ -28,6 +29,8 @@ export class WorkflowFailureService {
 
     @Inject(WORKFLOW_TRANSACTION_RUNNER)
     private readonly transactionRunner: WorkflowTransactionRunner,
+
+    private readonly children: ChildWorkflowService,
   ) {}
 
   serialize(error: unknown): string {
@@ -81,8 +84,8 @@ export class WorkflowFailureService {
       return;
     }
 
-    const persisted = await this.transactionRunner.execute(async () => {
-      await this.history.append(state.workflowId, {
+    const persisted = await this.transactionRunner.executeOrJoin!(async () => {
+      await this.persistence.appendFailure(state.workflowId, {
         step: failedStep,
         startedAt: state.stepStartedAt ?? failedAt,
         completedAt: failedAt,
@@ -104,6 +107,12 @@ export class WorkflowFailureService {
 
     const latest =
       (await this.stateService.load(persisted.workflowId)) ?? persisted;
+
+    const parent = await this.children.findParent(latest);
+
+    if (parent) {
+      await this.children.onChildFailed(parent, latest);
+    }
 
     const workflow = this.registry.get(
       latest.workflowName,

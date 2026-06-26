@@ -4,5 +4,5 @@ export interface WorkflowRuntime {
    */
   readonly abortSignal: AbortSignal;
 
-  isCancelled(): boolean;
+  isCancelled(): Promise<boolean>;
 }

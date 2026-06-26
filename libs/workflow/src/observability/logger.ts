@@ -3,21 +3,36 @@ import { WORKFLOW_METRICS } from '../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../models/workflow-execution-state';
 import { type WorkflowMetrics } from '../models/workflow-metrics';
 import { WorkflowStepExecution } from '../models/workflow-step-execution';
+import { WorkflowRegistry } from '../engine/registry/registry';
 
 @Injectable()
 export class WorkflowLogger {
   constructor(
+    private readonly registry: WorkflowRegistry,
+
     @Inject(WORKFLOW_METRICS)
     private readonly metrics: WorkflowMetrics,
   ) {}
+
+  private metricsEnabled(workflowName: string, version?: number): boolean {
+    const workflow =
+      version === undefined
+        ? this.registry.getLatest(workflowName)
+        : this.registry.get(workflowName, version);
+
+    return workflow.metadata.observability?.metrics !== false;
+  }
 
   private readonly logger = new Logger('Workflow');
 
   started(state: WorkflowExecutionState): void {
     this.logger.log(
-      `Started workflow=${state.workflowName} workflowId=${state.workflowId} executionId=${state.executionId}`,
+      `Started workflow=${state.workflowName} workflowId=${state.workflowId} executionId=${state.executionId} correlationId=${state.correlationId}`,
     );
-    this.metrics.workflowStarted(state.workflowName);
+
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.workflowStarted(state.workflowName);
+    }
   }
 
   deprecatedStep(
@@ -36,7 +51,9 @@ export class WorkflowLogger {
     this.logger.log(
       `Completed workflow=${state.workflowName} workflowId=${state.workflowId}`,
     );
-    this.metrics.workflowCompleted(state.workflowName);
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.workflowCompleted(state.workflowName);
+    }
   }
 
   failed(state: WorkflowExecutionState, error: unknown): void {
@@ -44,7 +61,9 @@ export class WorkflowLogger {
       `Failed workflow=${state.workflowName} workflowId=${state.workflowId}`,
       error instanceof Error ? error.stack : String(error),
     );
-    this.metrics.workflowFailed(state.workflowName);
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.workflowFailed(state.workflowName);
+    }
   }
 
   recovered(state: WorkflowExecutionState): void {
@@ -52,14 +71,18 @@ export class WorkflowLogger {
       `Recovered workflow=${state.workflowName} workflowId=${state.workflowId}`,
     );
 
-    this.metrics.workflowRecovered(state.workflowName);
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.workflowRecovered(state.workflowName);
+    }
   }
 
   stepStarted(state: WorkflowExecutionState): void {
     this.logger.debug(
       `Step started workflowId=${state.workflowId} step=${state.currentStep}`,
     );
-    this.metrics.stepStarted(state.workflowName, state.currentStep!);
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.stepStarted(state.workflowName, state.currentStep!);
+    }
   }
 
   stepCompleted(
@@ -69,11 +92,13 @@ export class WorkflowLogger {
     this.logger.debug(
       `Step completed workflowId=${state.workflowId} step=${execution.step} duration=${execution.durationMs ?? 0}ms`,
     );
-    this.metrics.stepCompleted(
-      state.workflowName,
-      execution.step,
-      execution.durationMs ?? 0,
-    );
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.stepCompleted(
+        state.workflowName,
+        execution.step,
+        execution.durationMs ?? 0,
+      );
+    }
   }
 
   cancelled(state: WorkflowExecutionState): void {
@@ -81,7 +106,9 @@ export class WorkflowLogger {
       `Cancelled workflow=${state.workflowName} workflowId=${state.workflowId}`,
     );
 
-    this.metrics.workflowCancelled(state.workflowName);
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.workflowCancelled(state.workflowName);
+    }
   }
 
   signalReceived(
@@ -93,7 +120,9 @@ export class WorkflowLogger {
     this.logger.debug(
       `Signal received workflowId=${workflowId} signal=${signalName} signalId=${signalId}`,
     );
-    this.metrics.signalReceived(workflowName);
+    if (this.metricsEnabled(workflowName)) {
+      this.metrics.signalReceived(workflowName);
+    }
   }
 
   retryScheduled(state: WorkflowExecutionState, retryAt: Date): void {
@@ -101,6 +130,8 @@ export class WorkflowLogger {
       `Retry scheduled workflow=${state.workflowName} workflowId=${state.workflowId} retryAt=${retryAt.toISOString()}`,
     );
 
-    this.metrics.retryScheduled(state.workflowName);
+    if (this.metricsEnabled(state.workflowName, state.workflowVersion)) {
+      this.metrics.retryScheduled(state.workflowName);
+    }
   }
 }

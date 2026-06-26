@@ -85,7 +85,13 @@ export class WorkflowStepExecutor {
         signal,
         runtime: {
           abortSignal,
-          isCancelled: () => abortSignal.aborted,
+          isCancelled: async () => {
+            if (abortSignal.aborted) {
+              return true;
+            }
+
+            return this.stateService.isCancelled(state.workflowId);
+          },
         },
       };
 
@@ -188,10 +194,17 @@ export class WorkflowStepExecutor {
     let timeout: NodeJS.Timeout | undefined;
 
     const controller = new AbortController();
+    const execution = operation(controller.signal);
+
+    execution.catch(() => {
+      // The execution may outlive the workflow timeout if user code
+      // ignores AbortSignal. Consume the rejection so it does not
+      // become an unhandled promise rejection.
+    });
 
     try {
       return await Promise.race([
-        operation(controller.signal),
+        execution,
 
         new Promise<T>((_, reject) => {
           timeout = setTimeout(() => {
@@ -206,7 +219,9 @@ export class WorkflowStepExecutor {
         }),
       ]);
     } finally {
-      clearTimeout(timeout);
+      if (timeout) {
+        clearTimeout(timeout);
+      }
     }
   }
 }

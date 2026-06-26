@@ -8,6 +8,7 @@ export * from './public/workflow.module';
  */
 export * from './public/api/workflow-client';
 export * from './public/api/workflow-query.service';
+export * from './query/workflow-query.service';
 
 /*
  * Decorators

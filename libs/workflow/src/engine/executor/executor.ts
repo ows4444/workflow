@@ -16,6 +16,12 @@ import { WorkflowSignal } from '../../models/workflow-signal';
 import { WorkflowLogger } from '../../observability/logger';
 import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 
+export interface WorkflowExecutionOptions {
+  readonly correlationId?: string;
+  readonly parentWorkflowId?: string;
+  readonly parentExecutionId?: string;
+}
+
 @Injectable()
 export class WorkflowExecutor {
   constructor(
@@ -46,6 +52,18 @@ export class WorkflowExecutor {
       data: state.data,
     };
   }
+  private async withLease<T>(
+    workflowId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    await this.leaseService.acquire(workflowId);
+
+    try {
+      return await operation();
+    } finally {
+      await this.leaseService.release(workflowId);
+    }
+  }
 
   private async finalize(
     workflow: RegisteredWorkflow,
@@ -60,9 +78,7 @@ export class WorkflowExecutor {
   }
 
   async resume(workflowId: string): Promise<WorkflowExecutionResult> {
-    await this.leaseService.acquire(workflowId);
-
-    try {
+    return this.withLease(workflowId, async () => {
       return await this.transactionRunner.execute(async () => {
         const { workflow, state } = await this.lifecycle.resume(workflowId);
 
@@ -79,19 +95,19 @@ export class WorkflowExecutor {
 
         return this.finalize(workflow, finalState);
       });
-    } finally {
-      await this.leaseService.release(workflowId);
-    }
+    });
   }
 
   async execute(
     workflowName: string,
     initialData: Record<string, unknown> = {},
+    options?: WorkflowExecutionOptions,
   ): Promise<WorkflowExecutionResult> {
-    return this.transactionRunner.execute(async () => {
+    return this.transactionRunner.executeOrJoin!(async () => {
       const { workflow, state: initialState } = await this.lifecycle.create(
         workflowName,
         initialData,
+        options,
       );
 
       await this.leaseService.acquire(initialState.workflowId);
@@ -119,7 +135,7 @@ export class WorkflowExecutor {
     workflowId: string,
     expired = false,
   ): Promise<WorkflowExecutionResult> {
-    return this.transactionRunner.execute(async () => {
+    return this.transactionRunner.executeOrJoin!(async () => {
       const state = await this.stateService.cancel(workflowId, expired);
       return this.toResult(state);
     });
@@ -129,58 +145,71 @@ export class WorkflowExecutor {
     workflowId: string,
     signal: WorkflowSignal,
   ): Promise<WorkflowExecutionResult> {
-    await this.leaseService.acquire(workflowId);
+    let nextSignal: WorkflowSignal | undefined = signal;
+    let result: WorkflowExecutionResult | undefined;
 
-    try {
-      return await this.transactionRunner.execute(async () => {
-        const state = await this.signalProcessor.prepare(workflowId, signal);
+    while (nextSignal) {
+      result = await this.withLease(workflowId, async () => {
+        return this.transactionRunner.executeOrJoin!(async () => {
+          const state = await this.signalProcessor.prepare(
+            workflowId,
+            nextSignal,
+          );
 
-        const workflow = this.registry.get(
-          state.workflowName,
-          state.workflowVersion,
-        );
+          const workflow = this.getDefinition(
+            state.workflowName,
+            state.workflowVersion,
+          );
 
-        this.logger.signalReceived(
-          workflow.metadata.name,
-          workflowId,
-          signal.name,
-          signal.signalId,
-        );
+          this.logger.signalReceived(
+            workflow.metadata.name,
+            workflowId,
+            signal.name,
+            signal.signalId,
+          );
 
-        let finalState: WorkflowExecutionState | undefined;
+          let finalState: WorkflowExecutionState | undefined;
 
-        try {
-          finalState = await this.runner.run(workflow, state, signal);
-        } catch (error) {
-          const latest =
-            (await this.stateService.load(workflowId)) ?? finalState ?? state;
-          await this.failureService.handleFailure(latest, error);
+          try {
+            finalState = await this.runner.run(workflow, state, signal);
+          } catch (error) {
+            const latest =
+              (await this.stateService.load(workflowId)) ?? finalState ?? state;
+            await this.failureService.handleFailure(latest, error);
 
-          throw error;
-        }
+            throw error;
+          }
 
-        this.transactionRunner.afterCommit?.(async () => {
-          await this.signalProcessor.complete(workflowId, signal.signalId);
+          this.transactionRunner.afterCommit?.(async () => {
+            await this.signalProcessor.complete(workflowId, signal.signalId);
 
-          await this.publisher.signalled(workflow, finalState);
+            await this.publisher.signalled(workflow, finalState);
+          });
+
+          const result = await this.finalize(workflow, finalState);
+
+          if (result.status !== 'waiting') {
+            return result;
+          }
+
+          const pending = await this.signalProcessor.pending(workflowId);
+          nextSignal = pending[0]?.signal;
+
+          return result;
         });
-
-        const result = await this.finalize(workflow, finalState);
-
-        if (result.status !== 'waiting') {
-          return result;
-        }
-
-        const pending = await this.signalProcessor.pending(workflowId);
-
-        if (pending.length === 0) {
-          return result;
-        }
-
-        return this.signal(workflowId, pending[0].signal);
       });
-    } finally {
-      await this.leaseService.release(workflowId);
     }
+
+    return result!;
+  }
+
+  async findByParentWorkflowId(parentWorkflowId: string) {
+    return this.stateService.findByParentWorkflowId(parentWorkflowId);
+  }
+
+  getDefinition(workflowName: string, version?: number): RegisteredWorkflow {
+    return version === undefined
+      ? this.registry.getLatest(workflowName)
+      : this.registry.get(workflowName, version);
   }
 }

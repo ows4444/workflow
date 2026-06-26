@@ -67,6 +67,10 @@ export class WorkflowAutoRecoveryService
       await this.recovery.findRecoverableExecutions(batchSize);
 
     for (const workflow of recoverable) {
+      if (workflow.retryAt && workflow.retryAt.getTime() > Date.now()) {
+        continue;
+      }
+
       const definition = workflowMap.get(
         `${workflow.workflowName}:${workflow.workflowVersion}`,
       );

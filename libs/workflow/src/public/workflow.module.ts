@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import {
   WORKFLOW_ARCHIVE_STORE,
+  WORKFLOW_EVENT_PUBLISHER,
   WORKFLOW_HISTORY_STORE,
   WORKFLOW_IDEMPOTENCY_STORE,
   WORKFLOW_METRICS,
   WORKFLOW_RETRY_JITTER,
   WORKFLOW_RETRY_SCHEDULER,
   WORKFLOW_SIGNAL_STORE,
+  WORKFLOW_SNAPSHOT_STORE,
   WORKFLOW_STATE_STORE,
   WORKFLOW_TRANSACTION_RUNNER,
 } from '../constants/workflow.tokens';
@@ -52,15 +54,24 @@ import { InMemoryWorkflowTransactionRunner } from '../testing/fakes/in-memory-wo
 import { WorkflowClient } from './api/workflow-client';
 import { WorkflowQueryService } from './api/workflow-query.service';
 import { NoopWorkflowArchiveStore } from '../retention/noop-archive.store';
+import { ChildWorkflowService } from '../engine/children/child-workflow.service';
+import { WorkflowPersistenceService } from '../persistence/workflow-persistence.service';
+import { NoopWorkflowSnapshotStore } from '../persistence/noop-snapshot.store';
+import { ScheduleModule } from '@nestjs/schedule';
+import { WorkflowExpirationService } from '../engine/expiration/workflow-expiration.service';
+import { NoopWorkflowEventPublisher } from '../observability/noop-event.publisher';
+import { ChildWorkflowFailureService } from '../engine/child-workflow/child-workflow-failure.service';
 
 @Module({
-  imports: [DiscoveryModule],
+  imports: [DiscoveryModule, ScheduleModule.forRoot()],
   providers: [
     WorkflowStateTransitions,
     WorkflowQueryService,
     WorkflowStateValidator,
     WorkflowStateFactory,
     WorkflowStateService,
+    ChildWorkflowService,
+    WorkflowPersistenceService,
 
     WorkflowCompletionService,
     WorkflowHookExecutor,
@@ -73,6 +84,14 @@ import { NoopWorkflowArchiveStore } from '../retention/noop-archive.store';
     DefaultWorkflowRetryJitterService,
     DefaultWorkflowRetryScheduler,
     NoopWorkflowArchiveStore,
+    NoopWorkflowSnapshotStore,
+    NoopWorkflowEventPublisher,
+    WorkflowExpirationService,
+
+    {
+      provide: WORKFLOW_SNAPSHOT_STORE,
+      useExisting: NoopWorkflowSnapshotStore,
+    },
 
     {
       provide: WORKFLOW_ARCHIVE_STORE,
@@ -88,6 +107,12 @@ import { NoopWorkflowArchiveStore } from '../retention/noop-archive.store';
       provide: WORKFLOW_RETRY_SCHEDULER,
       useExisting: DefaultWorkflowRetryScheduler,
     },
+
+    {
+      provide: WORKFLOW_EVENT_PUBLISHER,
+      useExisting: NoopWorkflowEventPublisher,
+    },
+
     WorkflowClient,
     WorkflowRegistry,
     WorkflowDiscovery,
@@ -102,6 +127,7 @@ import { NoopWorkflowArchiveStore } from '../retention/noop-archive.store';
     WorkflowSignalProcessor,
     WorkflowAutoRecoveryService,
     WorkflowFailureService,
+    ChildWorkflowFailureService,
     WorkflowRetryService,
     WorkflowRetryDelayService,
     WorkflowLeaseService,
@@ -155,6 +181,7 @@ import { NoopWorkflowArchiveStore } from '../retention/noop-archive.store';
     WORKFLOW_SIGNAL_STORE,
     WORKFLOW_TRANSACTION_RUNNER,
     WorkflowRecoveryService,
+    WorkflowExpirationService,
   ],
 })
 export class WorkflowModule {}

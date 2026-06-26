@@ -9,7 +9,7 @@ export interface WorkflowStepExecution {
 
   readonly durationMs?: number;
 
-  readonly status: 'completed' | 'failed';
+  readonly status: 'started' | 'completed' | 'failed';
 
   readonly error?: string;
 }

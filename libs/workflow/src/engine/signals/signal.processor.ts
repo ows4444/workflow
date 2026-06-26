@@ -33,11 +33,7 @@ export class WorkflowSignalProcessor {
     workflowId: string,
     signal: WorkflowSignal,
   ): Promise<WorkflowExecutionState> {
-    if (this.transactionRunner.isActive?.()) {
-      return this.prepareInternal(workflowId, signal);
-    }
-
-    return this.transactionRunner.execute(() =>
+    return this.transactionRunner.executeOrJoin!(() =>
       this.prepareInternal(workflowId, signal),
     );
   }
@@ -46,22 +42,6 @@ export class WorkflowSignalProcessor {
     workflowId: string,
     signal: WorkflowSignal,
   ): Promise<WorkflowExecutionState> {
-    const key = buildSignalIdempotencyKey(workflowId, signal.signalId);
-
-    const acquired = await this.idempotency.acquire(key, workflowId);
-
-    if (!acquired) {
-      const state = await this.states.load(workflowId);
-
-      if (!state) {
-        throw new WorkflowExecutionError(`Workflow '${workflowId}' not found`);
-      }
-
-      return state;
-    }
-
-    await this.signals.append(workflowId, signal);
-
     const state = await this.states.load(workflowId);
 
     if (!state) {
@@ -73,6 +53,30 @@ export class WorkflowSignalProcessor {
       state.workflowVersion,
     );
 
+    switch (state.status) {
+      case 'completed':
+        throw new WorkflowExecutionError(
+          `Workflow '${workflowId}' has already completed.`,
+        );
+
+      case 'failed':
+        throw new WorkflowExecutionError(
+          `Workflow '${workflowId}' has failed.`,
+        );
+
+      case 'cancelled':
+        throw new WorkflowExecutionError(
+          `Workflow '${workflowId}' has been cancelled.`,
+        );
+
+      case 'running':
+      case 'waiting':
+        break;
+
+      default:
+        state.status satisfies never;
+    }
+
     const supported = workflow.metadata.signals?.supportedSignals;
 
     if (supported && supported.length > 0 && !supported.includes(signal.name)) {
@@ -80,6 +84,25 @@ export class WorkflowSignalProcessor {
         `Signal '${signal.name}' is not supported by workflow '${workflow.metadata.name}'`,
       );
     }
+
+    if (
+      state.status === 'running' &&
+      workflow.metadata.signals?.bufferWhileRunning === false
+    ) {
+      throw new WorkflowExecutionError(
+        `Workflow '${workflow.metadata.name}' is not currently waiting for signals.`,
+      );
+    }
+
+    const key = buildSignalIdempotencyKey(workflowId, signal.signalId);
+
+    const acquired = await this.idempotency.acquire(key, workflowId);
+
+    if (!acquired) {
+      return state;
+    }
+
+    await this.signals.append(workflowId, signal);
 
     if (state.status !== 'waiting') {
       return state;

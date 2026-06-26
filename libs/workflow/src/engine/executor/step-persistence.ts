@@ -8,6 +8,8 @@ import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowStepExecution } from '../../models/workflow-step-execution';
 import { WorkflowStepResult } from '../../models/workflow-step-result';
 import { WorkflowHistoryService } from '../../persistence/history.service';
+import { WorkflowPersistenceService } from '@/workflow/persistence/workflow-persistence.service';
+import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
 
 @Injectable()
 export class WorkflowStepPersistenceService {
@@ -15,27 +17,49 @@ export class WorkflowStepPersistenceService {
     private readonly history: WorkflowHistoryService,
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
+    private readonly persistence: WorkflowPersistenceService,
 
     @Inject(WORKFLOW_TRANSACTION_RUNNER)
     private readonly transactionRunner: WorkflowTransactionRunner,
   ) {}
 
+  async startStep(
+    workflowId: string,
+    execution: WorkflowStepExecution,
+  ): Promise<void> {
+    await this.history.append(workflowId, execution);
+  }
+
   async completeStep(
+    workflow: RegisteredWorkflow,
     previous: WorkflowExecutionState,
     execution: WorkflowStepExecution,
     result: WorkflowStepResult,
   ): Promise<WorkflowExecutionState> {
-    await this.history.append(previous.workflowId, execution);
+    return this.transactionRunner.execute(async () => {
+      await this.history.append(previous.workflowId, execution);
 
-    const next = this.transitions.completeStep(
-      previous,
-      execution,
-      result.nextStep,
-      result.waitForSignal,
-      result.data,
-    );
+      const next = this.transitions.completeStep(
+        previous,
+        execution,
+        result.nextStep,
+        result.waitForSignal,
+        result.data,
+      );
 
-    return this.stateService.save(previous, next);
+      const persisted = await this.stateService.save(previous, next);
+
+      await this.persistence.snapshot(workflow, persisted);
+
+      return persisted;
+    });
+  }
+
+  async appendFailure(
+    workflowId: string,
+    execution: WorkflowStepExecution,
+  ): Promise<void> {
+    await this.history.append(workflowId, execution);
   }
 
   async appendRetry(

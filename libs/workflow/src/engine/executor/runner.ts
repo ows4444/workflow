@@ -74,6 +74,13 @@ export class WorkflowRunner {
         }
       }
       const startedAt = new Date();
+
+      await this.stepPersistence.startStep(state.workflowId, {
+        step: currentStep,
+        startedAt,
+        status: 'started',
+      });
+
       this.logger.stepStarted(state);
       const execution = await this.stepExecutor.execute(
         workflow,
@@ -92,12 +99,20 @@ export class WorkflowRunner {
       }
 
       if (latest.stateVersion !== state.stateVersion) {
+        if (latest.status === 'cancelled') {
+          return latest;
+        }
+
         throw new WorkflowExecutionError(
           `Workflow '${state.workflowId}' changed while step '${currentStep}' was executing`,
         );
       }
 
       if (latest.status !== 'running') {
+        if (latest.status === 'cancelled') {
+          return latest;
+        }
+
         throw new WorkflowExecutionError(
           `Workflow '${state.workflowId}' is no longer running`,
         );
@@ -121,10 +136,12 @@ export class WorkflowRunner {
       };
 
       state = await this.stepPersistence.completeStep(
+        workflow,
         state,
         stepExecution,
         execution.result,
       );
+
       this.logger.stepCompleted(state, stepExecution);
 
       if (execution.result.waitForSignal) {

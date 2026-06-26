@@ -142,6 +142,22 @@ export class WorkflowDiscovery implements OnModuleInit {
       this.validator.validate(workflow);
 
       for (const child of workflow.metadata.childWorkflows ?? []) {
+        const childDefinition = [...workflows.values()].find(
+          (candidate) => candidate.workflowType === child.workflow,
+        );
+
+        if (
+          childDefinition?.metadata.childWorkflows?.some(
+            (nested) => nested.workflow === workflow.workflowType,
+          )
+        ) {
+          throw new WorkflowConfigurationError(
+            `Circular child workflow relationship detected between '${workflow.metadata.name}' and '${childDefinition.metadata.name}'.`,
+          );
+        }
+      }
+
+      for (const child of workflow.metadata.childWorkflows ?? []) {
         const registered = [...workflows.values()].some(
           (candidate) => candidate.workflowType === child.workflow,
         );

@@ -8,6 +8,7 @@ import { type WorkflowStateStore } from '../../ports/workflow-state-store';
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
 
 @Injectable()
 export class WorkflowRecoveryService {
@@ -16,7 +17,38 @@ export class WorkflowRecoveryService {
     private readonly store: WorkflowStateStore,
 
     private readonly transitions: WorkflowStateTransitions,
+    private readonly history: WorkflowHistoryService,
   ) {}
+
+  async validateRecoverable(state: WorkflowExecutionState): Promise<void> {
+    const executingStep = state.executingStep;
+
+    if (!executingStep) {
+      return;
+    }
+
+    const history = await this.history.findByWorkflowId(state.workflowId);
+
+    const started = history.some(
+      (x) => x.step === executingStep && x.status === 'started',
+    );
+
+    const completed = history.some(
+      (x) => x.step === executingStep && x.status === 'completed',
+    );
+
+    if (!started) {
+      throw new WorkflowExecutionError(
+        `Recovery requested for '${executingStep}' but no started record exists.`,
+      );
+    }
+
+    if (completed) {
+      throw new WorkflowExecutionError(
+        `Recovery requested for '${executingStep}' but step already completed.`,
+      );
+    }
+  }
 
   async findStuckExecutions(
     olderThanMs = DEFAULT_STUCK_THRESHOLD_MS,

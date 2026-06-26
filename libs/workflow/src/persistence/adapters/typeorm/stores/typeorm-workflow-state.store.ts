@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
   FindOptionsWhere,
+  In,
   IsNull,
   LessThan,
   LessThanOrEqual,
@@ -31,6 +32,37 @@ export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
       this.context.get()?.getRepository(WorkflowStateEntity) ??
       this.dataSource.getRepository(WorkflowStateEntity)
     );
+  }
+
+  async findByCorrelationId(
+    correlationId: string,
+  ): Promise<WorkflowExecutionState[]> {
+    return this.repository
+      .find({
+        where: { correlationId },
+      })
+      .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
+  }
+
+  async findActive(workflowName?: string): Promise<WorkflowExecutionState[]> {
+    return this.repository
+      .find({
+        where: {
+          ...(workflowName && { workflowName }),
+          status: In(['running', 'waiting']),
+        },
+      })
+      .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
+  }
+
+  async findByParentWorkflowId(
+    parentWorkflowId: string,
+  ): Promise<WorkflowExecutionState[]> {
+    return this.repository
+      .find({
+        where: { parentWorkflowId },
+      })
+      .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));
   }
 
   async acquireLease(

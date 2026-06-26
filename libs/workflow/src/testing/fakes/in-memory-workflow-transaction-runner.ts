@@ -12,6 +12,14 @@ export class InMemoryWorkflowTransactionRunner implements WorkflowTransactionRun
     Array<() => Promise<void>>
   >();
 
+  executeOrJoin<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.isActive()) {
+      return operation();
+    }
+
+    return this.execute(operation);
+  }
+
   async execute<T>(operation: () => Promise<T>): Promise<T> {
     return this.activeStorage.run(true, () =>
       this.storage.run([], async () => {

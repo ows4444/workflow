@@ -16,11 +16,19 @@ export interface WorkflowStateStore {
     expiresAt: Date,
   ): Promise<boolean>;
 
+  findByCorrelationId(correlationId: string): Promise<WorkflowExecutionState[]>;
+
+  findActive(workflowName?: string): Promise<WorkflowExecutionState[]>;
+
   renewLease?(
     workflowId: string,
     owner: string,
     expiresAt: Date,
   ): Promise<boolean>;
+
+  findByParentWorkflowId(
+    parentWorkflowId: string,
+  ): Promise<WorkflowExecutionState[]>;
 
   releaseLease?(workflowId: string, owner: string): Promise<void>;
 

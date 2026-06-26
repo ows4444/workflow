@@ -122,8 +122,17 @@ export class WorkflowStateTransitions {
       stepRetryCount: 0,
       requiresRecovery: true,
       recoveryReason: reason,
-      recoveryAttempts: (state.recoveryAttempts ?? 0) + 1,
       retryAt,
+      lastRecoveryAt: new Date(),
+    });
+  }
+
+  incrementRecoveryAttempts(
+    state: WorkflowExecutionState,
+  ): WorkflowExecutionState {
+    return this.touch({
+      ...state,
+      recoveryAttempts: (state.recoveryAttempts ?? 0) + 1,
       lastRecoveryAt: new Date(),
     });
   }

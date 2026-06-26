@@ -8,6 +8,22 @@ import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 export class InMemoryWorkflowStateStore implements WorkflowStateStore {
   private readonly states = new Map<string, WorkflowExecutionState>();
 
+  async findByCorrelationId(correlationId: string) {
+    return this.values().filter((x) => x.correlationId === correlationId);
+  }
+
+  async findActive(workflowName?: string) {
+    return this.values().filter(
+      (x) =>
+        (x.status === 'running' || x.status === 'waiting') &&
+        (!workflowName || x.workflowName === workflowName),
+    );
+  }
+
+  async findByParentWorkflowId(parentWorkflowId: string) {
+    return this.values().filter((x) => x.parentWorkflowId === parentWorkflowId);
+  }
+
   async insert(state: WorkflowExecutionState): Promise<void> {
     if (this.states.has(state.workflowId)) {
       throw new WorkflowConcurrencyError(

@@ -8,7 +8,11 @@ export interface WorkflowExecutionState<
 > {
   readonly executionId: string;
 
-  readonly correlationId?: string;
+  readonly parentWorkflowId?: string;
+
+  readonly parentExecutionId?: string;
+
+  readonly correlationId: string;
 
   readonly workflowId: string;
 

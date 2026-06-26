@@ -12,7 +12,7 @@ const args = parseArgs({
     },
     'max-chars': {
       type: 'string',
-      default: '175000',
+      default: '200000',
     },
   },
 });

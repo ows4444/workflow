@@ -6,12 +6,14 @@ import { WorkflowLifecyclePublisher } from './lifecycle.publisher';
 import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { ChildWorkflowService } from '../children/child-workflow.service';
 
 @Injectable()
 export class WorkflowCompletionService {
   constructor(
     private readonly transitions: WorkflowStateTransitions,
     private readonly stateService: WorkflowStateService,
+    private readonly children: ChildWorkflowService,
 
     private readonly registry: WorkflowRegistry,
     private readonly publisher: WorkflowLifecyclePublisher,
@@ -31,14 +33,45 @@ export class WorkflowCompletionService {
       };
     }
 
+    let workflow = this.registry.get(state.workflowName, state.workflowVersion);
+
+    const children = await this.children.findChildren(state.workflowId);
+
+    const activeManagedChildren = children.filter((child) => {
+      if (!this.children.isManagedChild(workflow, child)) {
+        return false;
+      }
+
+      return (
+        child.status !== 'completed' &&
+        child.status !== 'failed' &&
+        child.status !== 'cancelled'
+      );
+    });
+
+    if (activeManagedChildren.length > 0) {
+      return {
+        state,
+        completed: false,
+      };
+    }
+
     const next = this.transitions.completeWorkflow(state);
 
-    const persisted = await this.stateService.save(state, next);
+    const persisted = await this.transactionRunner.executeOrJoin!(() =>
+      this.stateService.save(state, next),
+    );
 
-    const workflow = this.registry.get(
+    workflow = this.registry.get(
       persisted.workflowName,
       persisted.workflowVersion,
     );
+
+    const parent = await this.children.findParent(persisted);
+
+    if (parent) {
+      await this.children.onChildCompleted(parent, persisted);
+    }
 
     this.transactionRunner.afterCommit?.(() =>
       this.publisher.completed(workflow, persisted),

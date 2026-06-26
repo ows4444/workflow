@@ -12,8 +12,104 @@ export class WorkflowDefinitionValidator {
     this.validateCycles(workflow);
     this.validateTerminalSteps(workflow);
     this.validateRetryPolicy(workflow);
+    this.validateTimeouts(workflow);
+    this.validateSignals(workflow);
     this.validateDeprecatedSteps(workflow);
     this.validateChildWorkflows(workflow);
+    this.validateCompensation(workflow);
+  }
+
+  private validateCompensation(workflow: RegisteredWorkflow): void {
+    const compensation = workflow.metadata.compensation;
+
+    if (!compensation) {
+      return;
+    }
+
+    if (
+      compensation.strategy === 'custom' &&
+      (!compensation.order || compensation.order.length === 0)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' uses custom compensation without defining an order.`,
+      );
+    }
+
+    for (const step of compensation.order ?? []) {
+      if (!workflow.steps.has(step)) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' references unknown compensation step '${step}'.`,
+        );
+      }
+    }
+  }
+
+  private validateSignals(workflow: RegisteredWorkflow): void {
+    const signals = workflow.metadata.signals;
+
+    if (!signals) {
+      return;
+    }
+
+    if (
+      signals.defaultTimeoutMs !== undefined &&
+      (!Number.isFinite(signals.defaultTimeoutMs) ||
+        signals.defaultTimeoutMs <= 0)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' has an invalid signal timeout.`,
+      );
+    }
+
+    const supported = signals.supportedSignals;
+
+    if (!supported) {
+      return;
+    }
+
+    const unique = new Set<string>();
+
+    for (const signal of supported) {
+      if (!signal.trim()) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' declares an empty signal name.`,
+        );
+      }
+
+      if (unique.has(signal)) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' declares duplicate signal '${signal}'.`,
+        );
+      }
+
+      unique.add(signal);
+    }
+  }
+
+  private validateTimeouts(workflow: RegisteredWorkflow): void {
+    const validateTimeout = (name: string, value?: number) => {
+      if (value === undefined) {
+        return;
+      }
+
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new WorkflowConfigurationError(
+          `${name} must be a positive finite number.`,
+        );
+      }
+    };
+
+    validateTimeout(
+      `Workflow '${workflow.metadata.name}' defaultStepTimeoutMs`,
+      workflow.metadata.defaultStepTimeoutMs,
+    );
+
+    for (const step of workflow.steps.values()) {
+      validateTimeout(
+        `Step '${step.metadata.step}' timeoutMs`,
+        step.metadata.timeoutMs,
+      );
+    }
   }
 
   private validateChildWorkflows(workflow: RegisteredWorkflow): void {
@@ -31,6 +127,32 @@ export class WorkflowDefinitionValidator {
         throw new WorkflowConfigurationError(
           `Workflow '${workflow.metadata.name}' declares child workflow '${child.workflow.name}' more than once.`,
         );
+      }
+
+      if (child.workflow === workflow.workflowType) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' cannot declare itself as a child workflow.`,
+        );
+      }
+
+      switch (child.failurePolicy) {
+        case 'fail-parent':
+        case 'ignore':
+        case 'retry-child':
+        case 'compensate-parent':
+          break;
+
+        default:
+          child.failurePolicy satisfies never;
+      }
+
+      switch (child.cancellationPolicy) {
+        case 'propagate':
+        case 'detach':
+          break;
+
+        default:
+          child.cancellationPolicy satisfies never;
       }
 
       seen.add(child.workflow);

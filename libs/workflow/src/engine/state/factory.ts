@@ -8,13 +8,24 @@ export class WorkflowStateFactory {
   create(
     workflow: RegisteredWorkflow,
     initialData: Record<string, unknown>,
+
+    options?: {
+      correlationId?: string;
+      parentWorkflowId?: string;
+      parentExecutionId?: string;
+    },
   ): WorkflowExecutionState {
     const now = new Date();
+    const correlationId = options?.correlationId ?? randomUUID();
     const startStep = workflow.metadata.definition.start;
 
     return {
       executionId: randomUUID(),
       workflowId: randomUUID(),
+      correlationId,
+
+      parentWorkflowId: options?.parentWorkflowId,
+      parentExecutionId: options?.parentExecutionId,
 
       workflowName: workflow.metadata.name,
       workflowVersion: workflow.metadata.version,

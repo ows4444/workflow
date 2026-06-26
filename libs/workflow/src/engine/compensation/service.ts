@@ -25,12 +25,71 @@ export class WorkflowCompensationService {
         return this.compensateReverseOrder(workflow, state);
 
       case 'custom':
-        throw new Error(
-          `Compensation strategy '${strategy}' is not implemented.`,
-        );
+        return this.compensateCustom(workflow, state);
 
       default:
         strategy satisfies never;
+    }
+  }
+
+  private async compensateCustom(
+    workflow: RegisteredWorkflow,
+    state: WorkflowExecutionState,
+  ): Promise<void> {
+    const order = workflow.metadata.compensation?.order;
+
+    if (!order?.length) {
+      throw new Error(
+        `Workflow '${workflow.metadata.name}' uses custom compensation but no compensation order was provided.`,
+      );
+    }
+
+    const history = await this.history.findByWorkflowId(state.workflowId);
+
+    const completed = history.filter(
+      (execution) => execution.status === 'completed',
+    );
+
+    const executionMap = new Map(
+      completed.map((execution) => [execution.step, execution]),
+    );
+
+    for (const stepId of order) {
+      const execution = executionMap.get(stepId);
+
+      if (!execution) {
+        continue;
+      }
+
+      const step = workflow.steps.get(stepId);
+
+      const compensation = step?.metadata.compensation;
+
+      if (!compensation) {
+        continue;
+      }
+
+      try {
+        const handler = this.resolver.resolveCompensation(compensation.handler);
+
+        await handler.compensate({
+          workflowId: state.workflowId,
+          executionId: state.executionId,
+          workflowName: state.workflowName,
+          currentStep: execution.step,
+          stepExecutionKey: `${state.workflowId}:${execution.step}`,
+          data: state.data,
+          runtime: {
+            abortSignal: AbortSignal.timeout(Number.MAX_SAFE_INTEGER),
+            isCancelled: async () => false,
+          },
+        });
+      } catch (error) {
+        this.logger.error(
+          `Compensation failed for step '${execution.step}'`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
     }
   }
 
@@ -65,7 +124,7 @@ export class WorkflowCompensationService {
           data: state.data,
           runtime: {
             abortSignal: AbortSignal.timeout(Number.MAX_SAFE_INTEGER),
-            isCancelled: () => false,
+            isCancelled: async () => false,
           },
         });
       } catch (error) {

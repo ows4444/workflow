@@ -10,6 +10,8 @@ export class WorkflowStateMapper {
     return {
       workflowId: state.workflowId,
       executionId: state.executionId,
+      parentWorkflowId: state.parentWorkflowId,
+      parentExecutionId: state.parentExecutionId,
       workflowName: state.workflowName,
       workflowVersion: state.workflowVersion,
       status: state.status,
@@ -50,6 +52,8 @@ export class WorkflowStateMapper {
     return {
       workflowId: entity.workflowId,
       executionId: entity.executionId,
+      parentWorkflowId: entity.parentWorkflowId,
+      parentExecutionId: entity.parentExecutionId,
       workflowName: entity.workflowName,
       workflowVersion: entity.workflowVersion,
       status: entity.status,

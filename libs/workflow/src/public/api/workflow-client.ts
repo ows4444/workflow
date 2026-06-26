@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { WorkflowQueryService } from './workflow-query.service';
-import { WorkflowExecutor } from '../../engine/executor/executor';
+import {
+  WorkflowExecutionOptions,
+  WorkflowExecutor,
+} from '../../engine/executor/executor';
 import { WorkflowExecutionResult } from '../../models/workflow-execution-result';
 import { WorkflowSignal } from '../../models/workflow-signal';
 import { WorkflowDetails } from '../../types/workflow-details';
@@ -15,8 +18,17 @@ export class WorkflowClient {
   execute(
     workflowName: string,
     data: Record<string, unknown> = {},
+    options?: WorkflowExecutionOptions,
   ): Promise<WorkflowExecutionResult> {
-    return this.executor.execute(workflowName, data);
+    return this.executor.execute(workflowName, data, options);
+  }
+
+  active(workflowName?: string) {
+    return this.query.active(workflowName);
+  }
+
+  correlation(correlationId: string) {
+    return this.query.correlation(correlationId);
   }
 
   resume(workflowId: string): Promise<WorkflowExecutionResult> {

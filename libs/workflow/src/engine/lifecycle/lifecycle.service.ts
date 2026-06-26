@@ -10,6 +10,10 @@ import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowLogger } from '../../observability/logger';
 import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowRecoveryService } from '../retry/recovery.service';
+import { ChildWorkflowService } from '../children/child-workflow.service';
+import { WorkflowExecutionOptions } from '../executor/executor';
+import { WorkflowPersistenceService } from '@/workflow/persistence/workflow-persistence.service';
 
 @Injectable()
 export class WorkflowLifecycleService {
@@ -19,6 +23,9 @@ export class WorkflowLifecycleService {
     private readonly stateService: WorkflowStateService,
     private readonly transitions: WorkflowStateTransitions,
     private readonly publisher: WorkflowLifecyclePublisher,
+    private readonly children: ChildWorkflowService,
+    private readonly recovery: WorkflowRecoveryService,
+    private readonly persistence: WorkflowPersistenceService,
     private readonly logger: WorkflowLogger,
 
     @Inject(WORKFLOW_TRANSACTION_RUNNER)
@@ -28,20 +35,22 @@ export class WorkflowLifecycleService {
   async create(
     workflowName: string,
     initialData: Record<string, unknown>,
+    options?: WorkflowExecutionOptions,
   ): Promise<{
     workflow: RegisteredWorkflow;
     state: WorkflowExecutionState;
   }> {
     const workflow = this.registry.getLatest(workflowName);
 
-    const state = this.stateFactory.create(workflow, initialData);
+    const state = this.stateFactory.create(workflow, initialData, options);
 
     await this.stateService.insert(state);
     this.logger.started(state);
 
-    this.transactionRunner.afterCommit?.(() =>
-      this.publisher.started(workflow, state),
-    );
+    this.transactionRunner.afterCommit?.(async () => {
+      await this.publisher.started(workflow, state);
+      await this.children.startChildren(workflow, state);
+    });
 
     return {
       workflow,
@@ -76,11 +85,18 @@ export class WorkflowLifecycleService {
       state.workflowVersion,
     );
 
+    if (state.requiresRecovery) {
+      await this.recovery.validateRecoverable(state);
+    }
+
     const resumed = state.requiresRecovery
-      ? await this.stateService.save(
+      ? ((await this.persistence.recoverSnapshot(state)) ??
+        (await this.stateService.save(
           state,
-          this.transitions.clearRecovery(state),
-        )
+          this.transitions.clearRecovery(
+            this.transitions.incrementRecoveryAttempts(state),
+          ),
+        )))
       : state;
 
     if (state.requiresRecovery) {
