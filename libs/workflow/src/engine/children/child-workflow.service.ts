@@ -26,6 +26,101 @@ export class ChildWorkflowService {
     private readonly parentFailureHandler: WorkflowParentFailureHandler,
   ) {}
 
+  private async retryChild(
+    definition: WorkflowChildMetadata,
+    child: WorkflowExecutionState,
+  ): Promise<void> {
+    if (child.status !== 'failed' || child.lastFailure?.retriable === false) {
+      this.logger.warn(
+        `'retry-child' policy skipped: child '${child.workflowId}' ` +
+          `failure is non-retriable or not in failed status`,
+      );
+      return;
+    }
+
+    const maxRetries = definition.maxRetries ?? 1;
+    const attempts = child.failureCount ?? 0;
+
+    if (attempts >= maxRetries) {
+      this.logger.warn(
+        `'retry-child' policy exhausted for child '${child.workflowName}' ` +
+          `(${child.workflowId}): failureCount=${attempts} >= maxRetries=${maxRetries}. ` +
+          `Child will remain in failed status.`,
+      );
+      return;
+    }
+
+    try {
+      await this.executor.execute(child.workflowName, child.data, {
+        correlationId: child.correlationId,
+        parentWorkflowId: child.parentWorkflowId,
+        parentExecutionId: child.parentExecutionId,
+      });
+
+      this.logger.debug(
+        `'retry-child' re-executed child '${child.workflowName}' ` +
+          `(${child.workflowId}): attempt=${attempts + 1}/${maxRetries}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `'retry-child' policy failed to re-execute child '${child.workflowName}' ` +
+          `(${child.workflowId})`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  private getManagedChild(
+    parent: WorkflowExecutionState,
+    child: WorkflowExecutionState,
+  ):
+    | {
+        workflow: RegisteredWorkflow;
+        definition: WorkflowChildMetadata;
+      }
+    | undefined {
+    const workflow = this.registry.get(
+      parent.workflowName,
+      parent.workflowVersion,
+    );
+
+    const definition = this.findDefinition(workflow, child);
+
+    if (!definition) {
+      return;
+    }
+
+    return {
+      workflow,
+      definition,
+    };
+  }
+
+  private async failParent(
+    parent: WorkflowExecutionState,
+    child: WorkflowExecutionState,
+    compensation: boolean,
+  ): Promise<void> {
+    const reason = child.lastFailure?.message ?? 'Child workflow failed';
+
+    await this.parentFailureHandler.failExecution(
+      parent,
+      new NonRetriableWorkflowError(
+        compensation
+          ? `Child workflow '${child.workflowName}' failed (compensation triggered): ${reason}`
+          : `Child workflow '${child.workflowName}' failed: ${reason}`,
+      ),
+    );
+  }
+
+  private isTerminal(state: WorkflowExecutionState): boolean {
+    return (
+      state.status === 'completed' ||
+      state.status === 'cancelled' ||
+      state.status === 'failed'
+    );
+  }
+
   findDefinition(
     workflow: RegisteredWorkflow,
     child: WorkflowExecutionState,
@@ -69,14 +164,9 @@ export class ChildWorkflowService {
     parent: WorkflowExecutionState,
     child: WorkflowExecutionState,
   ): Promise<void> {
-    const parentWorkflow = this.registry.get(
-      parent.workflowName,
-      parent.workflowVersion,
-    );
+    const managed = this.getManagedChild(parent, child);
 
-    const definition = this.findDefinition(parentWorkflow, child);
-
-    if (!definition) {
+    if (!managed) {
       // Child is not a managed child of this parent; nothing to do.
       return;
     }
@@ -91,36 +181,27 @@ export class ChildWorkflowService {
     parent: WorkflowExecutionState,
     child: WorkflowExecutionState,
   ): Promise<void> {
-    const parentWorkflow = this.registry.get(
-      parent.workflowName,
-      parent.workflowVersion,
-    );
+    const managed = this.getManagedChild(parent, child);
 
-    const definition = this.findDefinition(parentWorkflow, child);
-
-    if (!definition) {
+    if (!managed) {
       // Child is not a managed child of this parent; nothing to do.
       return;
     }
 
-    const { failurePolicy } = definition;
+    const { workflow: parentWorkflow, definition } = managed;
 
     this.logger.warn(
       `Child workflow '${child.workflowName}' (${child.workflowId}) failed ` +
         `for parent '${parent.workflowName}' (${parent.workflowId}) ` +
-        `— applying policy '${failurePolicy}'`,
+        `— applying policy '${definition.failurePolicy}'`,
     );
 
-    switch (failurePolicy) {
+    switch (definition.failurePolicy) {
       case 'ignore':
         return;
 
       case 'fail-parent': {
-        if (
-          parent.status === 'completed' ||
-          parent.status === 'cancelled' ||
-          parent.status === 'failed'
-        ) {
+        if (this.isTerminal(parent)) {
           this.logger.warn(
             `Cannot apply 'fail-parent' policy: parent '${parent.workflowId}' ` +
               `is already in terminal status '${parent.status}'`,
@@ -128,68 +209,18 @@ export class ChildWorkflowService {
           return;
         }
 
-        const reason = child.lastFailure?.message ?? 'Child workflow failed';
-
-        await this.parentFailureHandler.failExecution(
-          parent,
-          new NonRetriableWorkflowError(
-            `Child workflow '${child.workflowName}' failed: ${reason}`,
-          ),
-        );
+        await this.failParent(parent, child, false);
         return;
       }
 
       case 'retry-child': {
-        if (
-          child.status !== 'failed' ||
-          child.lastFailure?.retriable === false
-        ) {
-          this.logger.warn(
-            `'retry-child' policy skipped: child '${child.workflowId}' ` +
-              `failure is non-retriable or not in failed status`,
-          );
-          return;
-        }
+        await this.retryChild(definition, child);
 
-        const maxRetries = definition.maxRetries ?? 1;
-        const attempts = child.failureCount ?? 0;
-
-        if (attempts >= maxRetries) {
-          this.logger.warn(
-            `'retry-child' policy exhausted for child '${child.workflowName}' ` +
-              `(${child.workflowId}): failureCount=${attempts} >= maxRetries=${maxRetries}. ` +
-              `Child will remain in failed status.`,
-          );
-          return;
-        }
-
-        try {
-          await this.executor.execute(child.workflowName, child.data, {
-            correlationId: child.correlationId,
-            parentWorkflowId: child.parentWorkflowId,
-            parentExecutionId: child.parentExecutionId,
-          });
-
-          this.logger.debug(
-            `'retry-child' re-executed child '${child.workflowName}' ` +
-              `(${child.workflowId}): attempt=${attempts + 1}/${maxRetries}`,
-          );
-        } catch (error) {
-          this.logger.error(
-            `'retry-child' policy failed to re-execute child '${child.workflowName}' ` +
-              `(${child.workflowId})`,
-            error instanceof Error ? error.stack : String(error),
-          );
-        }
         return;
       }
 
       case 'compensate-parent': {
-        if (
-          parent.status === 'completed' ||
-          parent.status === 'cancelled' ||
-          parent.status === 'failed'
-        ) {
+        if (this.isTerminal(parent)) {
           this.logger.warn(
             `Cannot apply 'compensate-parent' policy: parent '${parent.workflowId}' ` +
               `is already in terminal status '${parent.status}'`,
@@ -197,19 +228,14 @@ export class ChildWorkflowService {
           return;
         }
 
-        const reason = child.lastFailure?.message ?? 'Child workflow failed';
+        await this.compensation.compensate(parentWorkflow, parent);
 
-        await this.parentFailureHandler.failExecution(
-          parent,
-          new NonRetriableWorkflowError(
-            `Child workflow '${child.workflowName}' failed (compensation triggered): ${reason}`,
-          ),
-        );
+        await this.failParent(parent, child, true);
         return;
       }
 
       default:
-        failurePolicy satisfies never;
+        definition.failurePolicy satisfies never;
     }
   }
 

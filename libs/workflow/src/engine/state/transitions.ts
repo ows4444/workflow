@@ -14,6 +14,38 @@ export class WorkflowStateTransitions {
     };
   }
 
+  private clearRecoveryContext(): Pick<
+    WorkflowExecutionState,
+    'requiresRecovery' | 'recoveryReason' | 'retryAt'
+  > {
+    return {
+      requiresRecovery: false,
+      recoveryReason: undefined,
+      retryAt: undefined,
+    };
+  }
+
+  private clearExecutionContext(): Pick<
+    WorkflowExecutionState,
+    | 'executingStep'
+    | 'waitingForSignal'
+    | 'waitingSince'
+    | 'resumeStep'
+    | 'retryAt'
+    | 'stepStartedAt'
+    | 'requiresRecovery'
+  > {
+    return {
+      executingStep: undefined,
+      waitingForSignal: undefined,
+      waitingSince: undefined,
+      resumeStep: undefined,
+      retryAt: undefined,
+      stepStartedAt: undefined,
+      requiresRecovery: false,
+    };
+  }
+
   startStep(
     state: WorkflowExecutionState,
     step: WorkflowStepId,
@@ -21,11 +53,10 @@ export class WorkflowStateTransitions {
   ): WorkflowExecutionState {
     return this.touch({
       ...state,
+      ...this.clearRecoveryContext(),
       currentStep: step,
       executingStep: step,
       stepStartedAt: startedAt,
-      requiresRecovery: false,
-      retryAt: undefined,
     });
   }
 
@@ -39,30 +70,20 @@ export class WorkflowStateTransitions {
   completeWorkflow(state: WorkflowExecutionState): WorkflowExecutionState {
     return this.touch({
       ...state,
+      ...this.clearExecutionContext(),
       stepRetryCount: 0,
       status: 'completed',
       currentStep: undefined,
-      executingStep: undefined,
-      waitingForSignal: undefined,
-      waitingSince: undefined,
-      resumeStep: undefined,
       completedAt: new Date(),
-      stepStartedAt: undefined,
-      requiresRecovery: false,
     });
   }
 
   cancelWorkflow(state: WorkflowExecutionState): WorkflowExecutionState {
     return this.touch({
       ...state,
+      ...this.clearExecutionContext(),
       status: 'cancelled',
       currentStep: undefined,
-      executingStep: undefined,
-      waitingForSignal: undefined,
-      waitingSince: undefined,
-      resumeStep: undefined,
-      stepStartedAt: undefined,
-      requiresRecovery: false,
     });
   }
 
@@ -73,8 +94,7 @@ export class WorkflowStateTransitions {
   ): WorkflowExecutionState {
     return this.touch({
       ...state,
-      executingStep: undefined,
-      stepStartedAt: undefined,
+      ...this.clearExecutionContext(),
       failedStep: execution.step,
       lastFailure: failure,
     });
@@ -86,29 +106,23 @@ export class WorkflowStateTransitions {
   ): WorkflowExecutionState {
     return this.touch({
       ...state,
+      ...this.clearExecutionContext(),
       status: 'failed',
       stepRetryCount: 0,
-      executingStep: undefined,
-      waitingForSignal: undefined,
-      waitingSince: undefined,
-      resumeStep: undefined,
-      stepStartedAt: undefined,
+
       failedStep: state.executingStep ?? state.currentStep,
       failedAt: new Date(),
       lastFailure: failure,
       failureCount: (state.failureCount ?? 0) + 1,
-      requiresRecovery: false,
     });
   }
 
   resumeFromSignal(state: WorkflowExecutionState): WorkflowExecutionState {
     return this.touch({
       ...state,
+      ...this.clearExecutionContext(),
       status: 'running',
       currentStep: state.resumeStep,
-      resumeStep: undefined,
-      waitingForSignal: undefined,
-      waitingSince: undefined,
     });
   }
 
@@ -140,9 +154,7 @@ export class WorkflowStateTransitions {
   clearRecovery(state: WorkflowExecutionState): WorkflowExecutionState {
     return this.touch({
       ...state,
-      requiresRecovery: false,
-      recoveryReason: undefined,
-      retryAt: undefined,
+      ...this.clearRecoveryContext(),
     });
   }
 
@@ -164,11 +176,10 @@ export class WorkflowStateTransitions {
     if (waitForSignal) {
       return this.touch({
         ...state,
+        ...this.clearExecutionContext(),
         stepRetryCount: 0,
         status: 'waiting',
         data: mergedData,
-        executingStep: undefined,
-        stepStartedAt: undefined,
         waitingForSignal: waitForSignal,
         waitingSince: new Date(),
         resumeStep: nextStep,
@@ -179,12 +190,9 @@ export class WorkflowStateTransitions {
 
     return this.touch({
       ...state,
+      ...this.clearExecutionContext(),
       stepRetryCount: 0,
       data: mergedData,
-      executingStep: undefined,
-      stepStartedAt: undefined,
-      waitingForSignal: undefined,
-      resumeStep: undefined,
       currentStep: nextStep,
       historyCount: state.historyCount + 1,
       iteration: state.iteration + 1,

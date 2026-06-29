@@ -49,6 +49,43 @@ export class WorkflowDiscovery implements OnModuleInit {
     private readonly validator: WorkflowDefinitionValidator,
   ) {}
 
+  private registerStep(
+    workflow: MutableRegisteredWorkflow,
+    metadata: WorkflowStepMetadata,
+    type: Type<WorkflowStepHandler>,
+  ): void {
+    if (workflow.steps.has(metadata.step)) {
+      throw new WorkflowConfigurationError(
+        `Duplicate step '${metadata.step}' in workflow '${workflow.metadata.name}'`,
+      );
+    }
+
+    workflow.steps.set(metadata.step, {
+      metadata,
+      type,
+    });
+  }
+
+  private findWorkflow(
+    workflows: Map<string, MutableRegisteredWorkflow>,
+    name: string,
+    version: number,
+  ): MutableRegisteredWorkflow | undefined {
+    return workflows.get(WorkflowRegistry.buildKey(name, version));
+  }
+
+  private createWorkflowMetadata(
+    workflow: WorkflowMetadata,
+    hooks?: WorkflowHookMetadata,
+    signals?: WorkflowSignalMetadata,
+  ): WorkflowMetadata {
+    return Object.freeze({
+      ...workflow,
+      hooks: hooks ?? workflow.hooks,
+      signals: signals ?? workflow.signals,
+    });
+  }
+
   onModuleInit(): void {
     const providers = this.discovery.getProviders();
 
@@ -102,7 +139,7 @@ export class WorkflowDiscovery implements OnModuleInit {
     }
 
     for (const wrapper of providers) {
-      const type = wrapper.metatype;
+      const type = wrapper.metatype as Type<WorkflowStepHandler> | undefined;
 
       if (!type) {
         continue;
@@ -124,9 +161,10 @@ export class WorkflowDiscovery implements OnModuleInit {
             .filter((w) => w.metadata.name === metadata.workflow)
             .map((w) => w.metadata.version),
         );
-
-      const workflow = workflows.get(
-        WorkflowRegistry.buildKey(metadata.workflow, resolvedVersion),
+      const workflow = this.findWorkflow(
+        workflows,
+        metadata.workflow,
+        resolvedVersion,
       );
 
       if (!workflow) {
@@ -148,12 +186,7 @@ export class WorkflowDiscovery implements OnModuleInit {
         );
       }
 
-      workflow.steps.set(metadata.step, {
-        metadata,
-        type: type as Type<WorkflowStepHandler>,
-
-        // compensation: metadata.compensation?.handler,
-      });
+      this.registerStep(workflow, metadata, type);
     }
 
     for (const workflow of workflows.values()) {

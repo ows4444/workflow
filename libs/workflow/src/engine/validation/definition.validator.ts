@@ -9,6 +9,30 @@ const MAX_ATTEMPTS = 1_000;
 
 @Injectable()
 export class WorkflowDefinitionValidator {
+  private traverse(
+    workflow: RegisteredWorkflow,
+    visitor: (step: WorkflowStepId) => void,
+  ): Set<WorkflowStepId> {
+    const visited = new Set<WorkflowStepId>();
+
+    const stack: WorkflowStepId[] = [workflow.metadata.definition.start];
+
+    while (stack.length > 0) {
+      const current = stack.pop();
+
+      if (!current || visited.has(current)) {
+        continue;
+      }
+
+      visited.add(current);
+      visitor(current);
+
+      stack.push(...(workflow.metadata.definition.transitions[current] ?? []));
+    }
+
+    return visited;
+  }
+
   private validatePositiveDuration(
     workflow: RegisteredWorkflow,
     property: string,
@@ -69,6 +93,30 @@ export class WorkflowDefinitionValidator {
     this.validateAutoResume(workflow);
     this.validateRetention(workflow);
     this.validatePersistence(workflow);
+    this.validateCompatibility(workflow);
+  }
+
+  private validateCompatibility(workflow: RegisteredWorkflow): void {
+    const { metadata } = workflow;
+
+    if (
+      metadata.retention &&
+      metadata.autoResume &&
+      metadata.retention.ttlMs < (metadata.autoResume.stuckThresholdMs ?? 0)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${metadata.name}' retention.ttlMs must be greater than or equal to autoResume.stuckThresholdMs.`,
+      );
+    }
+
+    if (
+      metadata.compensation?.enabled &&
+      metadata.persistence?.snapshotEvery === undefined
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${metadata.name}' enables compensation but persistence.snapshotEvery is not configured.`,
+      );
+    }
   }
 
   private validateRetention(workflow: RegisteredWorkflow): void {
@@ -436,23 +484,7 @@ export class WorkflowDefinitionValidator {
   }
 
   private validateReachability(workflow: RegisteredWorkflow): void {
-    const visited = new Set<string>();
-
-    const stack = [workflow.metadata.definition.start];
-
-    while (stack.length > 0) {
-      const current = stack.pop();
-
-      if (!current || visited.has(current)) {
-        continue;
-      }
-
-      visited.add(current);
-
-      const targets = workflow.metadata.definition.transitions[current] ?? [];
-
-      stack.push(...targets);
-    }
+    const visited = this.traverse(workflow, () => {});
 
     for (const step of workflow.steps.keys()) {
       if (!visited.has(step)) {
