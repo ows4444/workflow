@@ -4,14 +4,16 @@ import { WorkflowExecutor } from '../executor/executor';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowStateService } from '../state/service';
-import { WorkflowChildMetadata } from '@/workflow/definition/workflow-child-metadata';
 import { WorkflowCompensationService } from '../compensation/service';
 import { WorkflowRegistry } from '../registry/registry';
-import { WorkflowParentFailureHandler } from '@/workflow/ports/workflow-parent-failure-handler';
-import { WORKFLOW_PARENT_FAILURE_HANDLER } from '@/workflow/constants/workflow.tokens';
-import { NonRetriableWorkflowError } from '@/workflow/errors';
+
 import { WorkflowStateTransitions } from '../state/transitions';
-import { WorkflowExecutionError } from '@/workflow';
+
+import { WORKFLOW_PARENT_FAILURE_HANDLER } from '../../constants/workflow.tokens';
+import { WorkflowChildMetadata } from '../../definition/workflow-child-metadata';
+import { NonRetriableWorkflowError } from '../../errors';
+import { WorkflowExecutionError } from '../../errors/workflow.errors';
+import { WorkflowParentFailureHandler } from '../../ports/workflow-parent-failure-handler';
 
 @Injectable()
 export class ChildWorkflowService {

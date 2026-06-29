@@ -4,10 +4,11 @@
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
-    "isolatedModules": true,
+    // "isolatedModules": true, // This is required for the `tsc` compiler to work with decorators, but it can cause issues with some libraries. Set to false to avoid issues.
     "types": ["node", "jest"],
     "declaration": true,
     "removeComments": true,
+    "isolatedModules": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,

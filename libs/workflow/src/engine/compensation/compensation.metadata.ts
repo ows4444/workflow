@@ -1,4 +1,4 @@
-import { WorkflowStepId } from '@/workflow/models/workflow-step-id';
+import { WorkflowStepId } from '../../models/workflow-step-id';
 
 export interface WorkflowCompensationMetadata {
   readonly enabled: boolean;

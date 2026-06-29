@@ -3,7 +3,7 @@ import { WorkflowStepResolver } from '../executor/step-resolver';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowHistoryService } from '../../persistence/history.service';
-import { DEFAULT_COMPENSATION_STEP_TIMEOUT_MS } from '@/workflow/constants/workflow.constants';
+import { DEFAULT_COMPENSATION_STEP_TIMEOUT_MS } from '../../constants/workflow.constants';
 
 @Injectable()
 export class WorkflowCompensationService {

@@ -13,8 +13,8 @@ import {
   DEFAULT_SIGNAL_TIMEOUT_MS,
   DEFAULT_STUCK_THRESHOLD_MS,
 } from '../../constants/workflow.constants';
-import { WorkflowMetrics } from '@/workflow/models/workflow-metrics';
-import { WORKFLOW_METRICS } from '@/workflow/constants/workflow.tokens';
+import { WORKFLOW_METRICS } from '../../constants/workflow.tokens';
+import { WorkflowMetrics } from '../../models/workflow-metrics';
 
 @Injectable()
 export class WorkflowAutoRecoveryService

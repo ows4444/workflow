@@ -95,11 +95,6 @@ import { ChildWorkflowFailureService } from '../engine/child-workflow/child-work
     },
 
     {
-      provide: WORKFLOW_SNAPSHOT_STORE,
-      useExisting: NoopWorkflowSnapshotStore,
-    },
-
-    {
       provide: WORKFLOW_ARCHIVE_STORE,
       useExisting: NoopWorkflowArchiveStore,
     },

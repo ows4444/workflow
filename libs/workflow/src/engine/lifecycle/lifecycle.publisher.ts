@@ -2,12 +2,12 @@ import { Inject, Injectable, Type } from '@nestjs/common';
 import { WorkflowHookExecutor } from '../hooks/hook-executor';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
-import { WorkflowHook } from '@/workflow/models/workflow-hook';
-import { WORKFLOW_EVENT_PUBLISHER } from '@/workflow/constants/workflow.tokens';
+import { WORKFLOW_EVENT_PUBLISHER } from '../../constants/workflow.tokens';
+import { WorkflowHook } from '../../models/workflow-hook';
 import {
+  WorkflowEventPublisher,
   WorkflowLifecycleEvent,
-  type WorkflowEventPublisher,
-} from '@/workflow/ports/workflow-event-publisher';
+} from '../../ports/workflow-event-publisher';
 
 @Injectable()
 export class WorkflowLifecyclePublisher {

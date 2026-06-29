@@ -8,7 +8,7 @@ import { WorkflowStateStore } from '../../ports/workflow-state-store';
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
-import { WorkflowHistoryService } from '@/workflow/persistence/history.service';
+import { WorkflowHistoryService } from '../../persistence/history.service';
 
 @Injectable()
 export class WorkflowRecoveryService {

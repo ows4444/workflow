@@ -8,8 +8,8 @@ import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowStepExecution } from '../../models/workflow-step-execution';
 import { WorkflowStepResult } from '../../models/workflow-step-result';
 import { WorkflowHistoryService } from '../../persistence/history.service';
-import { WorkflowPersistenceService } from '@/workflow/persistence/workflow-persistence.service';
-import { RegisteredWorkflow } from '@/workflow/models/registered-workflow';
+import { WorkflowPersistenceService } from '../../persistence/workflow-persistence.service';
+import { RegisteredWorkflow } from '../../models/registered-workflow';
 
 @Injectable()
 export class WorkflowStepPersistenceService {

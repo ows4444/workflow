@@ -1,5 +1,5 @@
-import { WorkflowExecutionState } from '@/workflow/models/workflow-execution-state';
 import { Entity, Index, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { WorkflowExecutionState } from '../../../../models/workflow-execution-state';
 
 @Entity('workflow_snapshots')
 @Index(['workflowId'], { unique: true })

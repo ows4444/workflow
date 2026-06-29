@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, QueryDeepPartialEntity, Repository } from 'typeorm';
 
 import { RegisteredWorkflow } from '../../../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../../../models/workflow-execution-state';
@@ -39,7 +39,9 @@ export class TypeOrmWorkflowSnapshotStore implements WorkflowSnapshotStore {
     _workflow: RegisteredWorkflow,
     state: WorkflowExecutionState,
   ): Promise<void> {
-    const persistence = WorkflowSnapshotMapper.toPersistence(state);
+    const persistence = WorkflowSnapshotMapper.toPersistence(
+      state,
+    ) as QueryDeepPartialEntity<WorkflowSnapshotEntity>;
 
     const existing = await this.repository.findOne({
       where: { workflowId: state.workflowId },

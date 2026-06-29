@@ -13,7 +13,7 @@ import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runn
 import { WorkflowRecoveryService } from '../retry/recovery.service';
 import { ChildWorkflowService } from '../children/child-workflow.service';
 import { WorkflowExecutionOptions } from '../executor/executor';
-import { WorkflowPersistenceService } from '@/workflow/persistence/workflow-persistence.service';
+import { WorkflowPersistenceService } from '../../persistence/workflow-persistence.service';
 
 @Injectable()
 export class WorkflowLifecycleService {
