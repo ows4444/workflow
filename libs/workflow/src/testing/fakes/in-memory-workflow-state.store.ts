@@ -95,9 +95,16 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
       );
     }
 
-    this.states.set(nextState.workflowId, nextState);
+    const merged: WorkflowExecutionState = {
+      ...nextState,
 
-    return nextState;
+      leaseOwner: existing.leaseOwner,
+      leaseExpiresAt: existing.leaseExpiresAt,
+    };
+
+    this.states.set(nextState.workflowId, merged);
+
+    return merged;
   }
 
   async load(workflowId: string): Promise<WorkflowExecutionState | null> {
