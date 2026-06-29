@@ -238,43 +238,27 @@ export class TypeOrmWorkflowStateStore
     workflowName?: string,
     workflowVersion?: number,
     olderThanMs = 0,
-    limit?: number,
   ): Promise<number> {
     const threshold = new Date(Date.now() - olderThanMs);
 
     const qb = this.repository
-      .createQueryBuilder('w')
-      .select('w.workflowId', 'workflowId')
-      .where('w.status = :status', { status: 'completed' })
-      .andWhere('w.completedAt < :threshold', { threshold });
+      .createQueryBuilder()
+      .delete()
+      .from(WorkflowStateEntity)
+      .where('status = :status', { status: 'completed' })
+      .andWhere('completedAt < :threshold', { threshold });
 
     if (workflowName !== undefined) {
-      qb.andWhere('w.workflowName = :workflowName', { workflowName });
+      qb.andWhere('workflowName = :workflowName', { workflowName });
     }
 
     if (workflowVersion !== undefined) {
-      qb.andWhere('w.workflowVersion = :workflowVersion', {
+      qb.andWhere('workflowVersion = :workflowVersion', {
         workflowVersion,
       });
     }
 
-    qb.orderBy('w.completedAt', 'ASC');
-
-    if (limit !== undefined) {
-      qb.take(limit);
-    }
-
-    const ids = await qb.getRawMany<{ workflowId: string }>();
-
-    if (ids.length === 0) {
-      return 0;
-    }
-
-    const result = await this.repository
-      .createQueryBuilder()
-      .delete()
-      .whereInIds(ids.map((x) => x.workflowId))
-      .execute();
+    const result = await qb.execute();
 
     return result.affected ?? 0;
   }

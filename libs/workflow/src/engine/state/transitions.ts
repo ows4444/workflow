@@ -3,7 +3,10 @@ import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowFailure } from '../../models/workflow-failure';
 import { WorkflowSignal } from '../../models/workflow-signal';
 import { WorkflowStepExecution } from '../../models/workflow-step-execution';
-import { WorkflowStepId } from '../../models/workflow-step-id';
+import {
+  createWorkflowStepId,
+  WorkflowStepId,
+} from '../../models/workflow-step-id';
 
 @Injectable()
 export class WorkflowStateTransitions {
@@ -138,6 +141,29 @@ export class WorkflowStateTransitions {
       recoveryReason: reason,
       retryAt,
       lastRecoveryAt: new Date(),
+    });
+  }
+
+  resetForRetry(state: WorkflowExecutionState): WorkflowExecutionState {
+    if (state.status !== 'failed') {
+      throw new Error(
+        `resetForRetry called on workflow '${state.workflowId}' with status '${state.status}' — expected 'failed'`,
+      );
+    }
+
+    if (!state.failedStep) {
+      throw new Error(
+        `resetForRetry called on workflow '${state.workflowId}' but failedStep is not set`,
+      );
+    }
+
+    return this.touch({
+      ...state,
+      ...this.clearExecutionContext(),
+      status: 'running',
+      currentStep: createWorkflowStepId(state.failedStep),
+      stepRetryCount: 0,
+      failedAt: undefined,
     });
   }
 

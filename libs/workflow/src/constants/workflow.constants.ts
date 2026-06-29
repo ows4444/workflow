@@ -9,3 +9,4 @@ export const DEFAULT_MAX_WORKFLOW_ITERATIONS = 1000;
 export const DEFAULT_STEP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 export const DEFAULT_STUCK_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 export const DEFAULT_SIGNAL_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const DEFAULT_COMPENSATION_STEP_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes

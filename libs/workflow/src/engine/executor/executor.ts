@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { WorkflowCompletionService } from '../lifecycle/completion.service';
 import { WorkflowFailureService } from '../lifecycle/failure.service';
 import { WorkflowLifecyclePublisher } from '../lifecycle/lifecycle.publisher';
@@ -40,6 +40,7 @@ export class WorkflowExecutor {
     private readonly leaseService: WorkflowLeaseService,
 
     private readonly stateService: WorkflowStateService,
+    @Inject(forwardRef(() => WorkflowFailureService))
     private readonly failureService: WorkflowFailureService,
   ) {}
 

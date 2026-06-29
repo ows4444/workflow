@@ -3,6 +3,7 @@ import { WorkflowStepResolver } from '../executor/step-resolver';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowHistoryService } from '../../persistence/history.service';
+import { DEFAULT_COMPENSATION_STEP_TIMEOUT_MS } from '@/workflow/constants/workflow.constants';
 
 @Injectable()
 export class WorkflowCompensationService {
@@ -81,7 +82,9 @@ export class WorkflowCompensationService {
           stepExecutionKey: `${state.workflowId}:${execution.step}`,
           data: state.data,
           runtime: {
-            abortSignal: AbortSignal.timeout(Number.MAX_SAFE_INTEGER),
+            abortSignal: AbortSignal.timeout(
+              DEFAULT_COMPENSATION_STEP_TIMEOUT_MS,
+            ),
             isCancelled: async () => false,
           },
         });
@@ -125,7 +128,9 @@ export class WorkflowCompensationService {
           stepExecutionKey: `${state.workflowId}:${execution.step}`,
           data: state.data,
           runtime: {
-            abortSignal: AbortSignal.timeout(Number.MAX_SAFE_INTEGER),
+            abortSignal: AbortSignal.timeout(
+              DEFAULT_COMPENSATION_STEP_TIMEOUT_MS,
+            ),
             isCancelled: async () => false,
           },
         });

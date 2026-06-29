@@ -10,6 +10,8 @@ import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowParentFailureHandler } from '@/workflow/ports/workflow-parent-failure-handler';
 import { WORKFLOW_PARENT_FAILURE_HANDLER } from '@/workflow/constants/workflow.tokens';
 import { NonRetriableWorkflowError } from '@/workflow/errors';
+import { WorkflowStateTransitions } from '../state/transitions';
+import { WorkflowExecutionError } from '@/workflow';
 
 @Injectable()
 export class ChildWorkflowService {
@@ -21,6 +23,7 @@ export class ChildWorkflowService {
     private readonly stateService: WorkflowStateService,
     private readonly compensation: WorkflowCompensationService,
     private readonly registry: WorkflowRegistry,
+    private readonly transitions: WorkflowStateTransitions,
 
     @Inject(WORKFLOW_PARENT_FAILURE_HANDLER)
     private readonly parentFailureHandler: WorkflowParentFailureHandler,
@@ -39,7 +42,7 @@ export class ChildWorkflowService {
     }
 
     const maxRetries = definition.maxRetries ?? 1;
-    const attempts = child.failureCount ?? 0;
+    const attempts = child.failureCount ?? 1;
 
     if (attempts >= maxRetries) {
       this.logger.warn(
@@ -51,19 +54,25 @@ export class ChildWorkflowService {
     }
 
     try {
-      await this.executor.execute(child.workflowName, child.data, {
-        correlationId: child.correlationId,
-        parentWorkflowId: child.parentWorkflowId,
-        parentExecutionId: child.parentExecutionId,
-      });
+      const reset = this.transitions.resetForRetry(child);
+      await this.stateService.save(child, reset);
+      await this.executor.resume(child.workflowId);
 
       this.logger.debug(
-        `'retry-child' re-executed child '${child.workflowName}' ` +
+        `'retry-child' reset and resumed child '${child.workflowName}' ` +
           `(${child.workflowId}): attempt=${attempts + 1}/${maxRetries}`,
       );
     } catch (error) {
+      if (error instanceof WorkflowExecutionError) {
+        this.logger.warn(
+          `'retry-child' could not resume child '${child.workflowName}' ` +
+            `(${child.workflowId}): ${error.message}`,
+        );
+        return;
+      }
+
       this.logger.error(
-        `'retry-child' policy failed to re-execute child '${child.workflowName}' ` +
+        `'retry-child' policy failed to resume child '${child.workflowName}' ` +
           `(${child.workflowId})`,
         error instanceof Error ? error.stack : String(error),
       );

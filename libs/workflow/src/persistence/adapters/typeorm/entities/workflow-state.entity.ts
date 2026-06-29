@@ -4,6 +4,7 @@ import { WorkflowFailure } from '../../../../models/workflow-failure';
 import { WorkflowSignal } from '../../../../models/workflow-signal';
 import { WorkflowStatus } from '../../../../types/workflow-status';
 
+@Index(['status', 'waitingSince'])
 @Index(['status'])
 @Index(['status', 'stepStartedAt'])
 @Index(['status', 'completedAt'])
@@ -49,7 +50,7 @@ export class WorkflowStateEntity {
   @Column()
   historyCount!: number;
 
-  @Column({ nullable: true })
+  @Column()
   correlationId!: string;
 
   @Column({ nullable: true })

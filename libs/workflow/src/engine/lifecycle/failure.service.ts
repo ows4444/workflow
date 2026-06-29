@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { WorkflowCompensationService } from '../compensation/service';
 import { WorkflowRegistry } from '../registry/registry';
 import { WorkflowRetryService } from '../retry/retry.service';
@@ -30,6 +30,7 @@ export class WorkflowFailureService {
     @Inject(WORKFLOW_TRANSACTION_RUNNER)
     private readonly transactionRunner: WorkflowTransactionRunner,
 
+    @Inject(forwardRef(() => ChildWorkflowService))
     private readonly children: ChildWorkflowService,
   ) {}
 
