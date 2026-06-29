@@ -154,13 +154,22 @@ export class WorkflowDiscovery implements OnModuleInit {
         continue;
       }
 
-      const resolvedVersion =
-        metadata.workflowVersion ??
-        Math.max(
-          ...[...workflows.values()]
-            .filter((w) => w.metadata.name === metadata.workflow)
-            .map((w) => w.metadata.version),
+      const matchingVersions = [...workflows.values()]
+        .filter((w) => w.metadata.name === metadata.workflow)
+        .map((w) => w.metadata.version);
+
+      if (
+        metadata.workflowVersion === undefined &&
+        matchingVersions.length === 0
+      ) {
+        throw new WorkflowConfigurationError(
+          `Step '${metadata.step}' references unknown workflow '${metadata.workflow}' — no version registered`,
         );
+      }
+
+      const resolvedVersion =
+        metadata.workflowVersion ?? Math.max(...matchingVersions);
+
       const workflow = this.findWorkflow(
         workflows,
         metadata.workflow,

@@ -197,7 +197,7 @@ export class TypeOrmWorkflowStateStore
 
     return this.repository
       .find({
-        where: { status: 'waiting', updatedAt: LessThan(threshold) },
+        where: { status: 'waiting', waitingSince: LessThan(threshold) },
         take: limit,
       })
       .then((entities) => entities.map((e) => WorkflowStateMapper.toDomain(e)));

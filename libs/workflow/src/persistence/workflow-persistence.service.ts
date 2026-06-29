@@ -12,7 +12,7 @@ export class WorkflowPersistenceService {
   ) {}
 
   loadSnapshot(workflowId: string): Promise<WorkflowExecutionState | null> {
-    return this.snapshotStore.load(workflowId) ?? Promise.resolve(null);
+    return this.snapshotStore.load(workflowId);
   }
 
   shouldSnapshot(

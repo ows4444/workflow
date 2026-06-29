@@ -6,6 +6,7 @@ import {
   WORKFLOW_IDEMPOTENCY_STORE,
   WORKFLOW_QUERY_STORE,
   WORKFLOW_SIGNAL_STORE,
+  WORKFLOW_SNAPSHOT_STORE,
   WORKFLOW_STATE_STORE,
   WORKFLOW_TRANSACTION_RUNNER,
 } from '../constants/workflow.tokens';
@@ -19,6 +20,10 @@ import { TypeOrmWorkflowSignalStore } from './adapters/typeorm/stores/typeorm-wo
 import { TypeOrmWorkflowStateStore } from './adapters/typeorm/stores/typeorm-workflow-state.store';
 import { TypeOrmWorkflowTransactionContext } from './adapters/typeorm/stores/typeorm-workflow-transaction-context';
 import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/typeorm-workflow-transaction-runner';
+import { WorkflowSnapshotEntity } from './adapters/typeorm/entities';
+import { NoopWorkflowSnapshotStore } from './noop-snapshot.store';
+import { TypeOrmWorkflowSnapshotStore } from './adapters/typeorm/stores/typeorm-workflow-snapshot.store';
+import { WorkflowPersistenceService } from './workflow-persistence.service';
 
 @Module({
   imports: [
@@ -27,6 +32,7 @@ import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/type
       WorkflowSignalEntity,
       WorkflowStepHistoryEntity,
       WorkflowIdempotencyEntity,
+      WorkflowSnapshotEntity,
     ]),
   ],
 
@@ -38,6 +44,9 @@ import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/type
     TypeOrmWorkflowSignalStore,
     TypeOrmWorkflowHistoryStore,
     TypeOrmWorkflowIdempotencyStore,
+    TypeOrmWorkflowSnapshotStore,
+    WorkflowPersistenceService,
+    NoopWorkflowSnapshotStore,
 
     {
       provide: WORKFLOW_QUERY_STORE,
@@ -67,6 +76,11 @@ import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/type
       provide: WORKFLOW_TRANSACTION_RUNNER,
       useExisting: TypeOrmWorkflowTransactionRunner,
     },
+
+    {
+      provide: WORKFLOW_SNAPSHOT_STORE,
+      useExisting: TypeOrmWorkflowSnapshotStore,
+    },
   ],
 
   exports: [
@@ -77,6 +91,8 @@ import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/type
     WORKFLOW_HISTORY_STORE,
     WORKFLOW_IDEMPOTENCY_STORE,
     WORKFLOW_TRANSACTION_RUNNER,
+    WORKFLOW_QUERY_STORE,
+    WORKFLOW_SNAPSHOT_STORE,
   ],
 })
 export class WorkflowPersistenceModule {}

@@ -36,7 +36,7 @@ export class WorkflowStepPersistenceService {
     execution: WorkflowStepExecution,
     result: WorkflowStepResult,
   ): Promise<WorkflowExecutionState> {
-    return this.transactionRunner.execute(async () => {
+    return this.transactionRunner.executeOrJoin!(async () => {
       await this.history.append(previous.workflowId, execution);
 
       const next = this.transitions.completeStep(

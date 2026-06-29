@@ -168,8 +168,17 @@ export class WorkflowAutoRecoveryService
       }
     }
 
+    const signalTimeouts = workflows
+      .map((w) => w.metadata.signals?.defaultTimeoutMs)
+      .filter((x): x is number => x !== undefined);
+
+    const minSignalTimeout =
+      signalTimeouts.length > 0
+        ? Math.min(...signalTimeouts)
+        : DEFAULT_SIGNAL_TIMEOUT_MS;
+
     const waiting = await this.recovery.findExpiredWaitingExecutions(
-      0,
+      minSignalTimeout,
       batchSize,
     );
 

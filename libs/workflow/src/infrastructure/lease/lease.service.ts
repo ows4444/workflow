@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { WORKFLOW_STATE_STORE } from '../../constants/workflow.tokens';
@@ -8,6 +8,7 @@ import { WorkflowConcurrencyError } from '../../errors/workflow.errors';
 @Injectable()
 export class WorkflowLeaseService {
   private readonly ownerId = randomUUID();
+  private readonly logger = new Logger(WorkflowLeaseService.name);
 
   constructor(
     @Inject(WORKFLOW_STATE_STORE)
@@ -69,7 +70,12 @@ export class WorkflowLeaseService {
     const intervalMs = Math.max(1_000, Math.floor(leaseMs / 2));
 
     const timer = setInterval(() => {
-      void this.renew(workflowId, leaseMs).catch(() => {
+      void this.renew(workflowId, leaseMs).catch((error: unknown) => {
+        this.logger.warn(
+          `Lease lost for workflow '${workflowId}' — stopping keep-alive. ` +
+            `Another node may have acquired the lease. ` +
+            (error instanceof Error ? error.message : String(error)),
+        );
         clearInterval(timer);
       });
     }, intervalMs);

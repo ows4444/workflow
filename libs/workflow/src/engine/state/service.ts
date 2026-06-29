@@ -170,7 +170,7 @@ export class WorkflowStateService {
   async findByParentWorkflowId(
     parentWorkflowId: string,
   ): Promise<WorkflowExecutionState[]> {
-    return (await this.store.findByParentWorkflowId?.(parentWorkflowId)) ?? [];
+    return this.store.findByParentWorkflowId(parentWorkflowId);
   }
 
   async delete(workflowId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { WorkflowIdempotencyEntity } from './workflow-idempotency.entity';
 import { WorkflowSignalEntity } from './workflow-signal.entity';
+import { WorkflowSnapshotEntity } from './workflow-snapshot.entity';
 import { WorkflowStateEntity } from './workflow-state.entity';
 import { WorkflowStepHistoryEntity } from './workflow-step-history.entity';
 
@@ -8,6 +9,7 @@ export const WORKFLOW_TYPEORM_ENTITIES = [
   WorkflowSignalEntity,
   WorkflowStepHistoryEntity,
   WorkflowIdempotencyEntity,
+  WorkflowSnapshotEntity,
 ] as const;
 
 export { WorkflowStateEntity } from './workflow-state.entity';

@@ -54,7 +54,10 @@ export class InMemoryWorkflowStateStore implements WorkflowStateStore {
     const threshold = Date.now() - olderThanMs;
 
     const results = this.values().filter(
-      (x) => x.status === 'waiting' && x.updatedAt.getTime() < threshold,
+      (x) =>
+        x.status === 'waiting' &&
+        x.waitingSince !== undefined &&
+        x.waitingSince.getTime() < threshold,
     );
 
     return limit === undefined ? results : results.slice(0, limit);

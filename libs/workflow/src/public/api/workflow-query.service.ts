@@ -5,9 +5,10 @@ import { WorkflowSignalService } from '../../engine/signals/signal.service';
 import { WorkflowStateService } from '../../engine/state/service';
 import { WorkflowHistoryService } from '../../persistence/history.service';
 import { WorkflowDetails } from '../../types/workflow-details';
+import { IWorkflowQueryService } from '@/workflow/query/workflow-query.service';
 
 @Injectable()
-export class WorkflowQueryService {
+export class WorkflowQueryService implements IWorkflowQueryService {
   constructor(
     private readonly stateService: WorkflowStateService,
     private readonly historyService: WorkflowHistoryService,

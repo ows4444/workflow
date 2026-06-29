@@ -85,6 +85,12 @@ export class WorkflowSignalProcessor {
       );
     }
 
+    if (supported && supported.length > 0 && !supported.includes(signal.name)) {
+      throw new WorkflowExecutionError(
+        `Signal '${signal.name}' is not supported by workflow '${workflow.metadata.name}'`,
+      );
+    }
+
     if (
       state.status === 'running' &&
       workflow.metadata.signals?.bufferWhileRunning === false
