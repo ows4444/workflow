@@ -6,6 +6,7 @@ import {
   WORKFLOW_HISTORY_STORE,
   WORKFLOW_IDEMPOTENCY_STORE,
   WORKFLOW_METRICS,
+  WORKFLOW_PARENT_FAILURE_HANDLER,
   WORKFLOW_RETRY_JITTER,
   WORKFLOW_RETRY_SCHEDULER,
   WORKFLOW_SIGNAL_STORE,
@@ -111,6 +112,11 @@ import { ChildWorkflowFailureService } from '../engine/child-workflow/child-work
     {
       provide: WORKFLOW_EVENT_PUBLISHER,
       useExisting: NoopWorkflowEventPublisher,
+    },
+
+    {
+      provide: WORKFLOW_PARENT_FAILURE_HANDLER,
+      useExisting: WorkflowFailureService,
     },
 
     WorkflowClient,

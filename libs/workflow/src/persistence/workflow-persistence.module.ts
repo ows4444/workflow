@@ -64,6 +64,8 @@ import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/type
   ],
 
   exports: [
+    TypeOrmWorkflowTransactionContext,
+    TypeOrmWorkflowTransactionRunner,
     WORKFLOW_STATE_STORE,
     WORKFLOW_SIGNAL_STORE,
     WORKFLOW_HISTORY_STORE,

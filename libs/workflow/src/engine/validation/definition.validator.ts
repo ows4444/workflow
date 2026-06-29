@@ -155,6 +155,42 @@ export class WorkflowDefinitionValidator {
           child.cancellationPolicy satisfies never;
       }
 
+      if (
+        child.failurePolicy === 'compensate-parent' &&
+        !workflow.metadata.compensation?.enabled
+      ) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' declares child workflow ` +
+            `'${child.workflow.name}' with failurePolicy 'compensate-parent' ` +
+            `but does not have compensation enabled. ` +
+            `Set compensation: { enabled: true, strategy: '...' } on ` +
+            `'${workflow.metadata.name}' or change the child failurePolicy.`,
+        );
+      }
+
+      if (
+        child.maxRetries !== undefined &&
+        (!Number.isInteger(child.maxRetries) || child.maxRetries < 1)
+      ) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' declares child workflow ` +
+            `'${child.workflow.name}' with maxRetries=${child.maxRetries}. ` +
+            `maxRetries must be a positive integer >= 1.`,
+        );
+      }
+
+      if (
+        child.maxRetries !== undefined &&
+        child.failurePolicy !== 'retry-child'
+      ) {
+        throw new WorkflowConfigurationError(
+          `Workflow '${workflow.metadata.name}' declares child workflow ` +
+            `'${child.workflow.name}' with maxRetries=${child.maxRetries} ` +
+            `but failurePolicy is '${child.failurePolicy}'. ` +
+            `maxRetries is only applicable when failurePolicy is 'retry-child'.`,
+        );
+      }
+
       seen.add(child.workflow);
     }
   }

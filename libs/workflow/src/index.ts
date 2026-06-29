@@ -11,12 +11,33 @@ export * from './public/api/workflow-query.service';
 export * from './query/workflow-query.service';
 
 /*
+ * Ports
+ */
+export * from './ports/workflow-parent-failure-handler';
+
+/*
+ * Persistence
+ */
+export {
+  WORKFLOW_TYPEORM_ENTITIES,
+  WorkflowStateEntity,
+  WorkflowSignalEntity,
+  WorkflowStepHistoryEntity,
+  WorkflowIdempotencyEntity,
+} from './persistence/adapters/typeorm/entities/index';
+
+/*
  * Decorators
  */
 export * from './workflow/workflow.decorator';
 export * from './steps/step.decorator';
 export * from './engine/hooks/hook.decorator';
 export * from './engine/signals/signal.decorator';
+
+/*
+ * Constants
+ */
+export * from './constants/workflow.constants';
 
 /*
  * Handler contracts

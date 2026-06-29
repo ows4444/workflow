@@ -75,6 +75,7 @@ export class WorkflowCompensationService {
         await handler.compensate({
           workflowId: state.workflowId,
           executionId: state.executionId,
+          correlationId: state.correlationId,
           workflowName: state.workflowName,
           currentStep: execution.step,
           stepExecutionKey: `${state.workflowId}:${execution.step}`,
@@ -118,6 +119,7 @@ export class WorkflowCompensationService {
         await handler.compensate({
           workflowId: state.workflowId,
           executionId: state.executionId,
+          correlationId: state.correlationId,
           workflowName: state.workflowName,
           currentStep: execution.step,
           stepExecutionKey: `${state.workflowId}:${execution.step}`,

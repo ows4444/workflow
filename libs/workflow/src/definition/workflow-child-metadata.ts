@@ -16,4 +16,6 @@ export interface WorkflowChildMetadata {
   readonly failurePolicy: WorkflowChildFailurePolicy;
 
   readonly cancellationPolicy: WorkflowChildCancellationPolicy;
+
+  readonly maxRetries?: number;
 }

@@ -3,7 +3,7 @@ import { WorkflowRuntime } from './workflow-runtime';
 
 export interface WorkflowContext<TState extends object = object> {
   readonly workflowId: string;
-  readonly correlationId?: string;
+  readonly correlationId: string;
   readonly stepExecutionKey: string;
   readonly executionId: string;
   readonly workflowName: string;

@@ -75,6 +75,7 @@ export class WorkflowStepExecutor {
       const context: WorkflowContext = {
         workflowId: state.workflowId,
         executionId: state.executionId,
+        correlationId: state.correlationId,
 
         stepExecutionKey: `${state.workflowId}:${state.currentStep}:${state.historyCount + 1}`,
 

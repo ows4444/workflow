@@ -18,4 +18,14 @@ export interface WorkflowMetrics {
   stepCompleted(workflowName: string, step: string, durationMs: number): void;
 
   hookFailed(workflow: string, hook: string): void;
+
+  sweepRecovered(count: number): void;
+
+  sweepStuckDetected(count: number): void;
+
+  sweepExpiredCancelled(count: number): void;
+
+  retentionDeleted(count: number): void;
+
+  retentionArchived(count: number): void;
 }

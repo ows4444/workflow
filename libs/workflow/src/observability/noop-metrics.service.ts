@@ -3,6 +3,11 @@ import { WorkflowMetrics } from '../models/workflow-metrics';
 
 @Injectable()
 export class NoopWorkflowMetricsService implements WorkflowMetrics {
+  sweepRecovered(): void {}
+  sweepStuckDetected(): void {}
+  sweepExpiredCancelled(): void {}
+  retentionDeleted(): void {}
+  retentionArchived(): void {}
   workflowStarted(): void {}
 
   workflowCompleted(): void {}
