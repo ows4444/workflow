@@ -26,6 +26,20 @@ interface MutableRegisteredWorkflow {
   readonly transitions: Map<WorkflowStepId, ReadonlySet<WorkflowStepId>>;
 }
 
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) {
+    return value;
+  }
+
+  Object.freeze(value);
+
+  for (const child of Object.values(value as Record<string, unknown>)) {
+    deepFreeze(child);
+  }
+
+  return value;
+}
+
 @Injectable()
 export class WorkflowDiscovery implements OnModuleInit {
   constructor(
@@ -39,8 +53,6 @@ export class WorkflowDiscovery implements OnModuleInit {
     const providers = this.discovery.getProviders();
 
     const workflows = new Map<string, MutableRegisteredWorkflow>();
-
-    const workflowKey = (name: string, version: number) => `${name}:${version}`;
 
     for (const wrapper of providers) {
       const type = wrapper.metatype;
@@ -68,14 +80,13 @@ export class WorkflowDiscovery implements OnModuleInit {
         type,
       );
 
-      const metadata: WorkflowMetadata = Object.freeze({
+      const metadata: WorkflowMetadata = deepFreeze({
         ...workflowMetadata,
         hooks: hookMetadata ?? workflowMetadata.hooks,
         signals: signalMetadata ?? workflowMetadata.signals,
       });
 
-      const key = workflowKey(metadata.name, metadata.version);
-
+      const key = WorkflowRegistry.buildKey(metadata.name, metadata.version);
       if (workflows.has(key)) {
         throw new WorkflowConfigurationError(
           `Workflow '${metadata.name}' version '${metadata.version}' already exists`,
@@ -106,9 +117,16 @@ export class WorkflowDiscovery implements OnModuleInit {
         continue;
       }
 
-      const resolvedVersion = metadata.workflowVersion ?? 1;
+      const resolvedVersion =
+        metadata.workflowVersion ??
+        Math.max(
+          ...[...workflows.values()]
+            .filter((w) => w.metadata.name === metadata.workflow)
+            .map((w) => w.metadata.version),
+        );
+
       const workflow = workflows.get(
-        workflowKey(metadata.workflow, resolvedVersion),
+        WorkflowRegistry.buildKey(metadata.workflow, resolvedVersion),
       );
 
       if (!workflow) {

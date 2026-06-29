@@ -9,6 +9,51 @@ const MAX_ATTEMPTS = 1_000;
 
 @Injectable()
 export class WorkflowDefinitionValidator {
+  private validatePositiveDuration(
+    workflow: RegisteredWorkflow,
+    property: string,
+    value?: number,
+  ): void {
+    if (value === undefined) {
+      return;
+    }
+
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' ${property} must be a positive finite number.`,
+      );
+    }
+
+    if (value > MAX_DURATION_MS) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' ${property} must be <= ${MAX_DURATION_MS}ms (365 days), got ${value}.`,
+      );
+    }
+  }
+
+  private validatePositiveInteger(
+    workflow: RegisteredWorkflow,
+    property: string,
+    value: number | undefined,
+    max?: number,
+  ): void {
+    if (value === undefined) {
+      return;
+    }
+
+    if (!Number.isInteger(value) || value < 1) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' ${property} must be a positive integer >= 1, got ${value}.`,
+      );
+    }
+
+    if (max !== undefined && value > max) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' ${property} must be <= ${max}, got ${value}.`,
+      );
+    }
+  }
+
   validate(workflow: RegisteredWorkflow): void {
     this.validateStartStep(workflow);
     this.validateTransitions(workflow);
@@ -33,28 +78,13 @@ export class WorkflowDefinitionValidator {
       return;
     }
 
-    if (
-      !Number.isFinite(retention.ttlMs) ||
-      retention.ttlMs <= 0 ||
-      retention.ttlMs > MAX_DURATION_MS
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' retention.ttlMs ` +
-          `must be a positive finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
-          `got ${retention.ttlMs}.`,
-      );
-    }
+    this.validatePositiveDuration(workflow, 'retention.ttlMs', retention.ttlMs);
 
-    if (
-      retention.batchSize !== undefined &&
-      (!Number.isInteger(retention.batchSize) || retention.batchSize < 1)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' retention.batchSize ` +
-          `must be a positive integer >= 1, ` +
-          `got ${retention.batchSize}.`,
-      );
-    }
+    this.validatePositiveInteger(
+      workflow,
+      'retention.batchSize',
+      retention.batchSize,
+    );
   }
 
   private validatePersistence(workflow: RegisteredWorkflow): void {
@@ -64,19 +94,11 @@ export class WorkflowDefinitionValidator {
       return;
     }
 
-    if (
-      persistence.snapshotEvery !== undefined &&
-      (!Number.isInteger(persistence.snapshotEvery) ||
-        persistence.snapshotEvery < 1)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' persistence.snapshotEvery ` +
-          `must be a positive integer >= 1, ` +
-          `got ${persistence.snapshotEvery}. ` +
-          `A value of 1 snapshots after every step; higher values snapshot ` +
-          `less frequently.`,
-      );
-    }
+    this.validatePositiveInteger(
+      workflow,
+      'persistence.snapshotEvery',
+      persistence.snapshotEvery,
+    );
   }
 
   private validateCompensation(workflow: RegisteredWorkflow): void {
@@ -111,15 +133,11 @@ export class WorkflowDefinitionValidator {
       return;
     }
 
-    if (
-      signals.defaultTimeoutMs !== undefined &&
-      (!Number.isFinite(signals.defaultTimeoutMs) ||
-        signals.defaultTimeoutMs <= 0)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' has an invalid signal timeout.`,
-      );
-    }
+    this.validatePositiveDuration(
+      workflow,
+      'signals.defaultTimeoutMs',
+      signals.defaultTimeoutMs,
+    );
 
     if (
       signals.defaultTimeoutMs !== undefined &&
@@ -165,55 +183,30 @@ export class WorkflowDefinitionValidator {
       return;
     }
 
-    if (
-      autoResume.intervalMs !== undefined &&
-      (!Number.isFinite(autoResume.intervalMs) ||
-        autoResume.intervalMs <= 0 ||
-        autoResume.intervalMs > MAX_DURATION_MS)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' autoResume.intervalMs ` +
-          `must be a positive finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
-          `got ${autoResume.intervalMs}.`,
-      );
-    }
+    this.validatePositiveDuration(
+      workflow,
+      'autoResume.intervalMs',
+      autoResume.intervalMs,
+    );
 
-    if (
-      autoResume.stuckThresholdMs !== undefined &&
-      (!Number.isFinite(autoResume.stuckThresholdMs) ||
-        autoResume.stuckThresholdMs <= 0 ||
-        autoResume.stuckThresholdMs > MAX_DURATION_MS)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' autoResume.stuckThresholdMs ` +
-          `must be a positive finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
-          `got ${autoResume.stuckThresholdMs}.`,
-      );
-    }
+    this.validatePositiveDuration(
+      workflow,
+      'autoResume.stuckThresholdMs',
+      autoResume.stuckThresholdMs,
+    );
 
-    if (
-      autoResume.maxAttempts !== undefined &&
-      (!Number.isInteger(autoResume.maxAttempts) ||
-        autoResume.maxAttempts < 1 ||
-        autoResume.maxAttempts > MAX_ATTEMPTS)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' autoResume.maxAttempts ` +
-          `must be a positive integer between 1 and ${MAX_ATTEMPTS}, ` +
-          `got ${autoResume.maxAttempts}.`,
-      );
-    }
+    this.validatePositiveInteger(
+      workflow,
+      'autoResume.maxAttempts',
+      autoResume.maxAttempts,
+      MAX_ATTEMPTS,
+    );
 
-    if (
-      autoResume.batchSize !== undefined &&
-      (!Number.isInteger(autoResume.batchSize) || autoResume.batchSize < 1)
-    ) {
-      throw new WorkflowConfigurationError(
-        `Workflow '${workflow.metadata.name}' autoResume.batchSize ` +
-          `must be a positive integer >= 1, ` +
-          `got ${autoResume.batchSize}.`,
-      );
-    }
+    this.validatePositiveInteger(
+      workflow,
+      'autoResume.batchSize',
+      autoResume.batchSize,
+    );
   }
 
   private validateTimeouts(workflow: RegisteredWorkflow): void {

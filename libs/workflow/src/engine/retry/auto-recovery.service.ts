@@ -63,7 +63,10 @@ export class WorkflowAutoRecoveryService
 
     const workflowMap = new Map(
       workflows.map((workflow) => [
-        `${workflow.metadata.name}:${workflow.metadata.version}`,
+        WorkflowRegistry.buildKey(
+          workflow.metadata.name,
+          workflow.metadata.version,
+        ),
         workflow,
       ]),
     );
@@ -101,7 +104,10 @@ export class WorkflowAutoRecoveryService
       }
 
       const definition = workflowMap.get(
-        `${workflow.workflowName}:${workflow.workflowVersion}`,
+        WorkflowRegistry.buildKey(
+          workflow.workflowName,
+          workflow.workflowVersion,
+        ),
       );
 
       if (definition?.metadata.autoResume?.enabled === false) {

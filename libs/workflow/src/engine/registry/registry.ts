@@ -7,8 +7,20 @@ import { RegisteredWorkflow } from '../../models/registered-workflow';
 export class WorkflowRegistry {
   private readonly workflows = new Map<string, RegisteredWorkflow>();
 
-  private buildKey(name: string, version: number): string {
+  static buildKey(name: string, version: number): string {
     return `${name}:${version}`;
+  }
+
+  private buildKey(name: string, version: number): string {
+    return WorkflowRegistry.buildKey(name, version);
+  }
+
+  resolve(name: string, version?: number): RegisteredWorkflow {
+    if (version === undefined) {
+      return this.getLatest(name);
+    }
+
+    return this.get(name, version);
   }
 
   getLatest(name: string): RegisteredWorkflow {
