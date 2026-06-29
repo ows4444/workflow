@@ -153,7 +153,7 @@ export class WorkflowExecutor {
         return this.transactionRunner.executeOrJoin!(async () => {
           const state = await this.signalProcessor.prepare(
             workflowId,
-            nextSignal,
+            nextSignal!,
           );
 
           const workflow = this.getDefinition(
