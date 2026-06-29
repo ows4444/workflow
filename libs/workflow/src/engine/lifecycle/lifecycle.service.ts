@@ -9,7 +9,7 @@ import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowLogger } from '../../observability/logger';
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { WorkflowRecoveryService } from '../retry/recovery.service';
 import { ChildWorkflowService } from '../children/child-workflow.service';
 import { WorkflowExecutionOptions } from '../executor/executor';

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { WorkflowExecutionState } from '../../models/workflow-execution-state';
+import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 
 export type ChildWorkflowFailurePolicy =
   | 'fail-parent'

@@ -7,7 +7,7 @@ import { WorkflowStateService } from '../state/service';
 import { WorkflowChildMetadata } from '@/workflow/definition/workflow-child-metadata';
 import { WorkflowCompensationService } from '../compensation/service';
 import { WorkflowRegistry } from '../registry/registry';
-import { type WorkflowParentFailureHandler } from '@/workflow/ports/workflow-parent-failure-handler';
+import { WorkflowParentFailureHandler } from '@/workflow/ports/workflow-parent-failure-handler';
 import { WORKFLOW_PARENT_FAILURE_HANDLER } from '@/workflow/constants/workflow.tokens';
 import { NonRetriableWorkflowError } from '@/workflow/errors';
 

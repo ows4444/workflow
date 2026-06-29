@@ -19,8 +19,7 @@ export class WorkflowStateMapper {
       failedStep: state.failedStep,
       lastFailure: state.lastFailure,
       recoveryReason: state.recoveryReason,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data: state.data as any,
+      data: state.data as QueryDeepPartialEntity<WorkflowStateEntity>['data'],
       historyCount: state.historyCount,
       correlationId: state.correlationId,
       executingStep: state.executingStep
@@ -28,8 +27,8 @@ export class WorkflowStateMapper {
         : undefined,
       resumeStep: state.resumeStep ? String(state.resumeStep) : undefined,
       stepRetryCount: state.stepRetryCount,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      waitingForSignal: state.waitingForSignal as any,
+      waitingForSignal:
+        state.waitingForSignal as QueryDeepPartialEntity<WorkflowStateEntity>['waitingForSignal'],
       waitingSince: state.waitingSince,
       iteration: state.iteration,
       failureCount: state.failureCount,

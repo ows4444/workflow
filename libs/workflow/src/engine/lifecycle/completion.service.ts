@@ -5,7 +5,7 @@ import { WorkflowStateTransitions } from '../state/transitions';
 import { WorkflowLifecyclePublisher } from './lifecycle.publisher';
 import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { ChildWorkflowService } from '../children/child-workflow.service';
 
 @Injectable()

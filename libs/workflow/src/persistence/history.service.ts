@@ -2,7 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { WORKFLOW_HISTORY_STORE } from '../constants/workflow.tokens';
 import { WorkflowStepExecution } from '../models/workflow-step-execution';
-import { type WorkflowExecutionHistoryStore } from '../ports/workflow-execution-history.store';
+import { WorkflowExecutionHistoryStore } from '../ports/workflow-execution-history.store';
 
 @Injectable()
 export class WorkflowHistoryService {

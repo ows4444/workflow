@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { WORKFLOW_TRANSACTION_RUNNER } from '../../constants/workflow.tokens';
 import { WorkflowStateService } from '../state/service';
 import { WorkflowStateTransitions } from '../state/transitions';

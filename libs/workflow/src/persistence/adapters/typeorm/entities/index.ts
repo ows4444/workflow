@@ -14,3 +14,4 @@ export { WorkflowStateEntity } from './workflow-state.entity';
 export { WorkflowSignalEntity } from './workflow-signal.entity';
 export { WorkflowStepHistoryEntity } from './workflow-step-history.entity';
 export { WorkflowIdempotencyEntity } from './workflow-idempotency.entity';
+export { WorkflowSnapshotEntity } from './workflow-snapshot.entity';

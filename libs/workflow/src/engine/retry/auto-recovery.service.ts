@@ -13,7 +13,7 @@ import {
   DEFAULT_SIGNAL_TIMEOUT_MS,
   DEFAULT_STUCK_THRESHOLD_MS,
 } from '../../constants/workflow.constants';
-import { type WorkflowMetrics } from '@/workflow/models/workflow-metrics';
+import { WorkflowMetrics } from '@/workflow/models/workflow-metrics';
 import { WORKFLOW_METRICS } from '@/workflow/constants/workflow.tokens';
 
 @Injectable()

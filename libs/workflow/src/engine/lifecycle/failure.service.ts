@@ -11,7 +11,7 @@ import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowFailure } from '../../models/workflow-failure';
 import { WorkflowLogger } from '../../observability/logger';
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { WorkflowStepPersistenceService } from '../executor/step-persistence';
 import { ChildWorkflowService } from '../children/child-workflow.service';
 

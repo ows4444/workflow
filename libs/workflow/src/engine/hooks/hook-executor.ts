@@ -3,7 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { WORKFLOW_METRICS } from '../../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowHook } from '../../models/workflow-hook';
-import { type WorkflowMetrics } from '../../models/workflow-metrics';
+import { WorkflowMetrics } from '../../models/workflow-metrics';
 import { WorkflowRegistry } from '../registry/registry';
 
 @Injectable()

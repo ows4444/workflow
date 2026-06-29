@@ -24,6 +24,7 @@ export {
   WorkflowSignalEntity,
   WorkflowStepHistoryEntity,
   WorkflowIdempotencyEntity,
+  WorkflowSnapshotEntity,
 } from './persistence/adapters/typeorm/entities/index';
 
 /*

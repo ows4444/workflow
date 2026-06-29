@@ -1,8 +1,8 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { WorkflowExecutionState } from '../../../../models/workflow-execution-state';
-import { type WorkflowFailure } from '../../../../models/workflow-failure';
-import { type WorkflowSignal } from '../../../../models/workflow-signal';
-import { type WorkflowStatus } from '../../../../types/workflow-status';
+import { WorkflowFailure } from '../../../../models/workflow-failure';
+import { WorkflowSignal } from '../../../../models/workflow-signal';
+import { WorkflowStatus } from '../../../../types/workflow-status';
 
 @Index(['status'])
 @Index(['status', 'stepStartedAt'])

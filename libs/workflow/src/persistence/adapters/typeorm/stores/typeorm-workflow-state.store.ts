@@ -17,9 +17,12 @@ import { WorkflowConcurrencyError } from '../../../../errors/workflow.errors';
 import { WorkflowExecutionState } from '../../../../models/workflow-execution-state';
 import { WorkflowStateStore } from '../../../../ports/workflow-state-store';
 import { WorkflowStatus } from '../../../../types/workflow-status';
+import { WorkflowQueryStore } from '@/workflow/ports/workflow-query.store';
 
 @Injectable()
-export class TypeOrmWorkflowStateStore implements WorkflowStateStore {
+export class TypeOrmWorkflowStateStore
+  implements WorkflowStateStore, WorkflowQueryStore
+{
   constructor(
     @InjectRepository(WorkflowStateEntity)
     private readonly defaultRepository: Repository<WorkflowStateEntity>,

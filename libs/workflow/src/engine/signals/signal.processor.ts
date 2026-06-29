@@ -10,8 +10,8 @@ import {
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowSignal } from '../../models/workflow-signal';
-import { type WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { buildSignalIdempotencyKey } from '../../shared/utils/workflow-idempotency-key';
 
 @Injectable()

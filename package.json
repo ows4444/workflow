@@ -64,6 +64,10 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
+  "overrides": {
+    "js-yaml": "^4.3.0",
+    "multer": "^2.2.0"
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",
@@ -87,5 +91,11 @@
     "moduleNameMapper": {
       "^@/workflow(|/.*)$": "<rootDir>/libs/workflow/src/$1"
     }
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.3": true,
+    "unrs-resolver@1.12.2": true,
+    "@scarf/scarf@1.4.0": true
   }
 }

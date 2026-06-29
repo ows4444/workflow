@@ -1,19 +1,18 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { RegisteredWorkflow } from '../models/registered-workflow';
 import { WorkflowExecutionState } from '../models/workflow-execution-state';
 import { WORKFLOW_SNAPSHOT_STORE } from '../constants/workflow.tokens';
-import { type WorkflowSnapshotStore } from '../ports/workflow-snapshot.store';
+import { WorkflowSnapshotStore } from '../ports/workflow-snapshot.store';
 
 @Injectable()
 export class WorkflowPersistenceService {
   constructor(
-    @Optional()
     @Inject(WORKFLOW_SNAPSHOT_STORE)
-    private readonly snapshotStore?: WorkflowSnapshotStore,
+    private readonly snapshotStore: WorkflowSnapshotStore,
   ) {}
 
   loadSnapshot(workflowId: string): Promise<WorkflowExecutionState | null> {
-    return this.snapshotStore?.load(workflowId) ?? Promise.resolve(null);
+    return this.snapshotStore.load(workflowId) ?? Promise.resolve(null);
   }
 
   shouldSnapshot(
@@ -37,13 +36,13 @@ export class WorkflowPersistenceService {
       return;
     }
 
-    await this.snapshotStore?.snapshot(workflow, state);
+    await this.snapshotStore.snapshot(workflow, state);
   }
 
   async recoverSnapshot(
     current: WorkflowExecutionState,
   ): Promise<WorkflowExecutionState | null> {
-    const snapshot = await this.snapshotStore?.load(current.workflowId);
+    const snapshot = await this.snapshotStore.load(current.workflowId);
 
     if (!snapshot) {
       return null;

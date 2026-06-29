@@ -85,9 +85,14 @@ import { ChildWorkflowFailureService } from '../engine/child-workflow/child-work
     DefaultWorkflowRetryJitterService,
     DefaultWorkflowRetryScheduler,
     NoopWorkflowArchiveStore,
-    NoopWorkflowSnapshotStore,
     NoopWorkflowEventPublisher,
     WorkflowExpirationService,
+    NoopWorkflowSnapshotStore,
+
+    {
+      provide: WORKFLOW_SNAPSHOT_STORE,
+      useExisting: NoopWorkflowSnapshotStore,
+    },
 
     {
       provide: WORKFLOW_SNAPSHOT_STORE,

@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   WORKFLOW_HISTORY_STORE,
   WORKFLOW_IDEMPOTENCY_STORE,
+  WORKFLOW_QUERY_STORE,
   WORKFLOW_SIGNAL_STORE,
   WORKFLOW_STATE_STORE,
   WORKFLOW_TRANSACTION_RUNNER,
@@ -37,6 +38,11 @@ import { TypeOrmWorkflowTransactionRunner } from './adapters/typeorm/stores/type
     TypeOrmWorkflowSignalStore,
     TypeOrmWorkflowHistoryStore,
     TypeOrmWorkflowIdempotencyStore,
+
+    {
+      provide: WORKFLOW_QUERY_STORE,
+      useExisting: TypeOrmWorkflowStateStore,
+    },
 
     {
       provide: WORKFLOW_IDEMPOTENCY_STORE,

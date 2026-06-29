@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { WORKFLOW_STATE_STORE } from '../../constants/workflow.tokens';
-import { type WorkflowStateStore } from '../../ports/workflow-state-store';
+import { WorkflowStateStore } from '../../ports/workflow-state-store';
 import { WorkflowConcurrencyError } from '../../errors/workflow.errors';
 
 @Injectable()

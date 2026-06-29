@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { WORKFLOW_METRICS } from '../constants/workflow.tokens';
 import { WorkflowExecutionState } from '../models/workflow-execution-state';
-import { type WorkflowMetrics } from '../models/workflow-metrics';
+import { WorkflowMetrics } from '../models/workflow-metrics';
 import { WorkflowStepExecution } from '../models/workflow-step-execution';
 import { WorkflowRegistry } from '../engine/registry/registry';
 

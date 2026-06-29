@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DEFAULT_STUCK_THRESHOLD_MS } from '../../constants/workflow.constants';
 import { WORKFLOW_STATE_STORE } from '../../constants/workflow.tokens';
 
-import { type WorkflowStateStore } from '../../ports/workflow-state-store';
+import { WorkflowStateStore } from '../../ports/workflow-state-store';
 
 import { WorkflowExecutionError } from '../../errors/workflow.errors';
 import { WorkflowStateTransitions } from '../state/transitions';

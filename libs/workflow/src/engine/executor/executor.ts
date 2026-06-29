@@ -14,7 +14,7 @@ import { WorkflowExecutionResult } from '../../models/workflow-execution-result'
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowSignal } from '../../models/workflow-signal';
 import { WorkflowLogger } from '../../observability/logger';
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 
 export interface WorkflowExecutionOptions {
   readonly correlationId?: string;

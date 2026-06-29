@@ -16,9 +16,9 @@ import { WorkflowLeaseService } from '../../infrastructure/lease/lease.service';
 import { WorkflowExecutionState } from '../../models/workflow-execution-state';
 import { WorkflowLogger } from '../../observability/logger';
 import { WorkflowHistoryService } from '../../persistence/history.service';
-import { type WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
-import { type WorkflowStateStore } from '../../ports/workflow-state-store';
-import { type WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
+import { WorkflowIdempotencyStore } from '../../ports/workflow-idempotency-store';
+import { WorkflowStateStore } from '../../ports/workflow-state-store';
+import { WorkflowTransactionRunner } from '../../ports/workflow-transaction-runner';
 import { ChildWorkflowService } from '../children/child-workflow.service';
 
 @Injectable()

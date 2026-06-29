@@ -14,8 +14,8 @@ import {
   WORKFLOW_ARCHIVE_STORE,
   WORKFLOW_METRICS,
 } from '../constants/workflow.tokens';
-import { type WorkflowArchiveStore } from '../ports/workflow-archive.store';
-import { type WorkflowMetrics } from '../models/workflow-metrics';
+import { WorkflowArchiveStore } from '../ports/workflow-archive.store';
+import { WorkflowMetrics } from '../models/workflow-metrics';
 
 const MIN_RETENTION_INTERVAL_MS = 60_000; // 60 seconds
 

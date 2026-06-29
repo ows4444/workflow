@@ -22,6 +22,61 @@ export class WorkflowDefinitionValidator {
     this.validateChildWorkflows(workflow);
     this.validateCompensation(workflow);
     this.validateAutoResume(workflow);
+    this.validateRetention(workflow);
+    this.validatePersistence(workflow);
+  }
+
+  private validateRetention(workflow: RegisteredWorkflow): void {
+    const retention = workflow.metadata.retention;
+
+    if (!retention) {
+      return;
+    }
+
+    if (
+      !Number.isFinite(retention.ttlMs) ||
+      retention.ttlMs <= 0 ||
+      retention.ttlMs > MAX_DURATION_MS
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retention.ttlMs ` +
+          `must be a positive finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
+          `got ${retention.ttlMs}.`,
+      );
+    }
+
+    if (
+      retention.batchSize !== undefined &&
+      (!Number.isInteger(retention.batchSize) || retention.batchSize < 1)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retention.batchSize ` +
+          `must be a positive integer >= 1, ` +
+          `got ${retention.batchSize}.`,
+      );
+    }
+  }
+
+  private validatePersistence(workflow: RegisteredWorkflow): void {
+    const persistence = workflow.metadata.persistence;
+
+    if (!persistence) {
+      return;
+    }
+
+    if (
+      persistence.snapshotEvery !== undefined &&
+      (!Number.isInteger(persistence.snapshotEvery) ||
+        persistence.snapshotEvery < 1)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' persistence.snapshotEvery ` +
+          `must be a positive integer >= 1, ` +
+          `got ${persistence.snapshotEvery}. ` +
+          `A value of 1 snapshots after every step; higher values snapshot ` +
+          `less frequently.`,
+      );
+    }
   }
 
   private validateCompensation(workflow: RegisteredWorkflow): void {
