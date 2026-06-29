@@ -3,6 +3,10 @@ import { WorkflowConfigurationError } from '../../errors/workflow.errors';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
 import { WorkflowStepId } from '../../models/workflow-step-id';
 
+const MAX_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
+
+const MAX_ATTEMPTS = 1_000;
+
 @Injectable()
 export class WorkflowDefinitionValidator {
   validate(workflow: RegisteredWorkflow): void {
@@ -17,6 +21,7 @@ export class WorkflowDefinitionValidator {
     this.validateDeprecatedSteps(workflow);
     this.validateChildWorkflows(workflow);
     this.validateCompensation(workflow);
+    this.validateAutoResume(workflow);
   }
 
   private validateCompensation(workflow: RegisteredWorkflow): void {
@@ -61,6 +66,18 @@ export class WorkflowDefinitionValidator {
       );
     }
 
+    if (
+      signals.defaultTimeoutMs !== undefined &&
+      signals.defaultTimeoutMs > MAX_DURATION_MS
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' has signal defaultTimeoutMs ` +
+          `${signals.defaultTimeoutMs}ms which exceeds the maximum of ` +
+          `${MAX_DURATION_MS}ms (365 days). Signal expiry would be effectively ` +
+          `disabled. Remove the field to use the library default.`,
+      );
+    }
+
     const supported = signals.supportedSignals;
 
     if (!supported) {
@@ -86,6 +103,64 @@ export class WorkflowDefinitionValidator {
     }
   }
 
+  private validateAutoResume(workflow: RegisteredWorkflow): void {
+    const autoResume = workflow.metadata.autoResume;
+
+    if (!autoResume) {
+      return;
+    }
+
+    if (
+      autoResume.intervalMs !== undefined &&
+      (!Number.isFinite(autoResume.intervalMs) ||
+        autoResume.intervalMs <= 0 ||
+        autoResume.intervalMs > MAX_DURATION_MS)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' autoResume.intervalMs ` +
+          `must be a positive finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
+          `got ${autoResume.intervalMs}.`,
+      );
+    }
+
+    if (
+      autoResume.stuckThresholdMs !== undefined &&
+      (!Number.isFinite(autoResume.stuckThresholdMs) ||
+        autoResume.stuckThresholdMs <= 0 ||
+        autoResume.stuckThresholdMs > MAX_DURATION_MS)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' autoResume.stuckThresholdMs ` +
+          `must be a positive finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
+          `got ${autoResume.stuckThresholdMs}.`,
+      );
+    }
+
+    if (
+      autoResume.maxAttempts !== undefined &&
+      (!Number.isInteger(autoResume.maxAttempts) ||
+        autoResume.maxAttempts < 1 ||
+        autoResume.maxAttempts > MAX_ATTEMPTS)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' autoResume.maxAttempts ` +
+          `must be a positive integer between 1 and ${MAX_ATTEMPTS}, ` +
+          `got ${autoResume.maxAttempts}.`,
+      );
+    }
+
+    if (
+      autoResume.batchSize !== undefined &&
+      (!Number.isInteger(autoResume.batchSize) || autoResume.batchSize < 1)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' autoResume.batchSize ` +
+          `must be a positive integer >= 1, ` +
+          `got ${autoResume.batchSize}.`,
+      );
+    }
+  }
+
   private validateTimeouts(workflow: RegisteredWorkflow): void {
     const validateTimeout = (name: string, value?: number) => {
       if (value === undefined) {
@@ -95,6 +170,13 @@ export class WorkflowDefinitionValidator {
       if (!Number.isFinite(value) || value <= 0) {
         throw new WorkflowConfigurationError(
           `${name} must be a positive finite number.`,
+        );
+      }
+
+      if (value > MAX_DURATION_MS) {
+        throw new WorkflowConfigurationError(
+          `${name} must be <= ${MAX_DURATION_MS}ms (365 days), got ${value}ms. ` +
+            `Step execution cannot exceed 365 days.`,
         );
       }
     };
@@ -249,6 +331,58 @@ export class WorkflowDefinitionValidator {
     if (retry.maxAttempts < 1) {
       throw new WorkflowConfigurationError(
         `Workflow '${workflow.metadata.name}' maxAttempts must be >= 1`,
+      );
+    }
+
+    if (retry.maxAttempts > MAX_ATTEMPTS) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retries.maxAttempts ` +
+          `must be <= ${MAX_ATTEMPTS}, got ${retry.maxAttempts}.`,
+      );
+    }
+
+    if (
+      retry.delayMs !== undefined &&
+      (!Number.isFinite(retry.delayMs) ||
+        retry.delayMs < 0 ||
+        retry.delayMs > MAX_DURATION_MS)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retries.delayMs ` +
+          `must be a non-negative finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
+          `got ${retry.delayMs}.`,
+      );
+    }
+
+    if (
+      retry.maxDelayMs !== undefined &&
+      (!Number.isFinite(retry.maxDelayMs) ||
+        retry.maxDelayMs < 0 ||
+        retry.maxDelayMs > MAX_DURATION_MS)
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retries.maxDelayMs ` +
+          `must be a non-negative finite number <= ${MAX_DURATION_MS}ms (365 days), ` +
+          `got ${retry.maxDelayMs}.`,
+      );
+    }
+
+    if (
+      retry.delayMs !== undefined &&
+      retry.maxDelayMs !== undefined &&
+      retry.maxDelayMs < retry.delayMs
+    ) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retries.maxDelayMs ` +
+          `(${retry.maxDelayMs}ms) must be >= retries.delayMs (${retry.delayMs}ms).`,
+      );
+    }
+
+    if (retry.strategy === 'fixed' && retry.maxDelayMs !== undefined) {
+      throw new WorkflowConfigurationError(
+        `Workflow '${workflow.metadata.name}' retries.maxDelayMs is not ` +
+          `applicable when strategy is 'fixed'. Remove maxDelayMs or ` +
+          `change the strategy to 'exponential'.`,
       );
     }
   }
