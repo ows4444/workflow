@@ -50,7 +50,7 @@ export class WorkflowStateEntity {
   historyCount!: number;
 
   @Column({ nullable: true })
-  correlationId?: string;
+  correlationId!: string;
 
   @Column({ nullable: true })
   executingStep?: string;
