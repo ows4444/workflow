@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 
 import { WorkflowExecutor } from '../executor/executor';
 import { RegisteredWorkflow } from '../../models/registered-workflow';
@@ -15,7 +15,9 @@ import { NonRetriableWorkflowError } from '@/workflow/errors';
 export class ChildWorkflowService {
   private readonly logger = new Logger(ChildWorkflowService.name);
   constructor(
+    @Inject(forwardRef(() => WorkflowExecutor))
     private readonly executor: WorkflowExecutor,
+    @Inject(forwardRef(() => WorkflowStateService))
     private readonly stateService: WorkflowStateService,
     private readonly compensation: WorkflowCompensationService,
     private readonly registry: WorkflowRegistry,

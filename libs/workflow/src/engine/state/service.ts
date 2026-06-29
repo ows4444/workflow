@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 
 import {
   WORKFLOW_IDEMPOTENCY_STORE,
@@ -30,6 +30,7 @@ export class WorkflowStateService {
     private readonly validator: WorkflowStateValidator,
     private readonly registry: WorkflowRegistry,
     private readonly publisher: WorkflowLifecyclePublisher,
+    @Inject(forwardRef(() => ChildWorkflowService))
     private readonly children: ChildWorkflowService,
     private readonly logger: WorkflowLogger,
     private readonly transitions: WorkflowStateTransitions,
